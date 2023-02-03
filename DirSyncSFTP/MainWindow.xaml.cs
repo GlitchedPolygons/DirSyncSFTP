@@ -1,4 +1,22 @@
-﻿using System;
+﻿/*
+    DirSyncSFTP
+    Copyright (C) 2023  Raphael Beck
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -37,10 +55,12 @@ namespace DirSyncSFTP
     {
         private JsonPrefs jsonPrefs;
         private volatile bool quitting = false;
+        
         private readonly string baseDir;
         private readonly string powershellSyncScriptFile;
         private readonly string powershellScanHostKeyFingerprintScriptFile;
-        private readonly IDictionary<string, string> knownHosts = new ConcurrentDictionary<string, string>();
+        
+        private readonly KnownHosts knownHosts;
         private readonly IDictionary<string, ProcessStartInfo> processStartInfoCache = new ConcurrentDictionary<string, ProcessStartInfo>();
 
         // TODO: implement configurability for custom directory paths (local and remote, a list of those, allow unlimited entries here and sync unliiiimited directories).
@@ -72,16 +92,14 @@ namespace DirSyncSFTP
 
             baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "AppData", "LocalLow", versionInfo.CompanyName ?? "Glitched Polygons", versionInfo.ProductName ?? "Temp");
 
+            knownHosts = new KnownHosts(Path.Combine(baseDir, Constants.KNOWN_HOSTS_FILENAME));
             powershellSyncScriptFile = Path.Combine(baseDir, Constants.POWERSHELL_SYNC_SCRIPT_FILENAME);
             powershellScanHostKeyFingerprintScriptFile = Path.Combine(baseDir, Constants.POWERSHELL_SCAN_HOST_KEY_FP_SCRIPT_FILENAME);
 
             CreateScriptFileIfNotExistsOrWrong(powershellSyncScriptFile, Constants.POWERSHELL_SYNC_SCRIPT);
             CreateScriptFileIfNotExistsOrWrong(powershellScanHostKeyFingerprintScriptFile, Constants.POWERSHELL_SCAN_HOST_KEY_FP_SCRIPT);
 
-            if (!File.Exists(Constants.KNOWN_HOSTS_FILENAME))
-            {
-                File.WriteAllText(Constants.KNOWN_HOSTS_FILENAME, "{}");
-            }
+            knownHosts.Load();
 
             jsonPrefs = JsonPrefs.FromFile(Constants.CONFIG_FILENAME, true, new JsonSerializerOptions { WriteIndented = true });
 
@@ -126,6 +144,8 @@ namespace DirSyncSFTP
 
             jsonPrefs.Save();
 
+            AppendLineToConsoleOutputTextBox("Copyright (C) 2023 Raphael Beck\nThis is free software (GPL-3.0 licensed). Enjoy :D");
+            
             SliderSyncInterval.Value = Math.Clamp(jsonPrefs.GetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES, 15), 1, 60);
 
             using NotifyIcon notifyIcon = new();
@@ -135,6 +155,11 @@ namespace DirSyncSFTP
             notifyIcon.Click += OnNotifyIconClick;
 
             _ = Task.Run(Sync);
+        }
+        
+        private void ExecuteOnUIThread(Action action)
+        {
+            Application.Current?.Dispatcher?.Invoke(action, DispatcherPriority.Normal);
         }
 
         private void CreateScriptFileIfNotExistsOrWrong(string scriptFilePath, string script)
@@ -156,7 +181,6 @@ namespace DirSyncSFTP
                 powershellScriptFileInfo.IsReadOnly = true;
             }
         }
-
 
         private void OnNotifyIconClick(object? sender, EventArgs args)
         {
@@ -215,11 +239,6 @@ namespace DirSyncSFTP
             return stdout.NotNullNotEmpty()
                 ? stdout.Trim()
                 : string.Empty;
-        }
-
-        private void ExecuteOnUIThread(Action action)
-        {
-            Application.Current?.Dispatcher?.Invoke(action, DispatcherPriority.Normal);
         }
 
         private void AppendLineToConsoleOutputTextBox(string line)
@@ -291,8 +310,15 @@ namespace DirSyncSFTP
                     string stderr = await process.StandardError.ReadToEndAsync();
                     string stdout = await process.StandardOutput.ReadToEndAsync();
 
-                    AppendLineToConsoleOutputTextBox($"ERROR: {stderr}");
-                    AppendLineToConsoleOutputTextBox(stdout);
+                    if (stderr.NotNullNotEmpty())
+                    {
+                        AppendLineToConsoleOutputTextBox($"ERROR: {stderr}");
+                    }
+
+                    if (stdout.NotNullNotEmpty())
+                    {
+                        AppendLineToConsoleOutputTextBox(stdout);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -300,9 +326,12 @@ namespace DirSyncSFTP
                 }
 
                 endOfLoop:
-                
-                await Task.Delay(TimeSpan.FromSeconds(12)); // todo: replace with below line before releasing
-                //await Task.Delay(TimeSpan.FromMinutes(jsonPrefs.GetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES)));
+
+#if DEBUG
+                await Task.Delay(TimeSpan.FromSeconds(15)); 
+#else
+                await Task.Delay(TimeSpan.FromMinutes(jsonPrefs.GetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES)));
+#endif
             }
         }
 
