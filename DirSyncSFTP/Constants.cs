@@ -5,38 +5,94 @@ public static class Constants
     public static class PrefKeys
     {
         public const string CLIENT_ID = "ClientId";
-        public const string WINSCP_EXE_PATH = "WinScpExePath";
+        public const string WINSCP_ASSEMBLY_PATH = "WinScpAssemblyPath";
         public const string LAST_SYNC_UTC = "LastSyncTimestampUTC";
         public const string SYNC_INTERVAL_MINUTES = "SyncIntervalMinutes";
         public const string VERSION_NUMBER_MAJOR = "VersionNumberMajor";
         public const string VERSION_NUMBER_MINOR = "VersionNumberMinor";
         public const string VERSION_NUMBER_PATCH = "VersionNumberPatch";
+        public const string MAX_CONSOLE_OUTPUT_LINECOUNT = "MaxConsoleOutputLineCount";
     }
 
     public const string CONFIG_FILENAME = "Config.json";
-    public const string REMOTE_METADATA_FILENAME = ".dirsyncsftp";
-    public const string REMOTE_LOCK_FILENAME = ".dirsyncsftplock";
+    public const string KNOWN_HOSTS_FILENAME = "KnownHosts.json";
+    public const string POWERSHELL_SYNC_SCRIPT_FILENAME = "Sync.ps1";
+    public const string POWERSHELL_SCAN_HOST_KEY_FP_SCRIPT_FILENAME = "ScanHostKeyFingerprint.ps1";
 
-    public const string POWERSHELL_SCRIPT = @"
+    public const string POWERSHELL_SCAN_HOST_KEY_FP_SCRIPT = @"
 param (
-    $sessionUrl = ""sftp://user:mypassword;fingerprint=ssh-rsa-xxxxxxxxxxx...@example.com/"",
     [Parameter(Mandatory = $True)]
-    $localPath,
+    [string] $assemblyPath = ""C:\Program Files (x86)\WinSCP\WinSCPnet.dll"",
+
     [Parameter(Mandatory = $True)]
-    $remotePath,
+    [string] $hostName = ""sftp.example.com"",
+
     [Parameter(Mandatory = $True)]
-    $listPath,
+    [int] $portNumber = 22
+)
+
+try
+{
+    Add-Type -Path $assemblyPath
+ 
+    $sessionOptions = New-Object WinSCP.SessionOptions -Property @{
+        Protocol = [WinSCP.Protocol]::Sftp
+        HostName = $hostName
+        PortNumber = $portNumber
+    }
+
+    $session = New-Object WinSCP.Session
+    try
+    {
+        $fingerprint = $session.ScanFingerprint($sessionOptions, ""SHA-256"")
+        Write-Host -NoNewline ($fingerprint)
+        $result = 0
+    }
+    finally
+    {
+        $session.Dispose()
+    }
+}
+catch
+{
+    Write-Host ""Error: $($_.Exception.Message)""
+    $result = 1
+}
+ 
+exit $result
+
+";
+
+    public const string POWERSHELL_SYNC_SCRIPT = @"
+param (
+    [Parameter(Mandatory = $True)]
+    [string] $assemblyPath = ""C:\Program Files (x86)\WinSCP\WinSCPnet.dll"",
+
+    [Parameter(Mandatory = $True)]
+    [string] $sessionUrl = ""sftp://user:mypassword;fingerprint=ssh-rsa-xxxxxxxxxxx...@example.com/"",
+
+    [Parameter(Mandatory = $True)]
+    [string] $localPath,
+
+    [Parameter(Mandatory = $True)]
+    [string] $remotePath,
+
+    [Parameter(Mandatory = $True)]
+    [string] $listPath,
+
     [Parameter(Mandatory = $False)]
-    $sshKey,
+    [string] $sshKey,
+
     [Parameter(Mandatory = $False)]
-    $sshKeyPassphrase,
-    $sessionLogPath = $Null
+    [string] $sshKeyPassphrase,
+
+    [Parameter(Mandatory = $False)]
+    [string] $sessionLogPath = $Null
 )
  
 try
 {
-    $assemblyPath = if ($env:WINSCP_PATH) { $env:WINSCP_PATH } else { $PSScriptRoot }
-    Add-Type -Path (Join-Path $assemblyPath ""WinSCPnet.dll"")
+    Add-Type -Path $assemblyPath
  
     $sessionOptions = New-Object WinSCP.SessionOptions
     $sessionOptions.ParseUrl($sessionUrl)

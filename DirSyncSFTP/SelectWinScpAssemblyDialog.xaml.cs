@@ -20,35 +20,35 @@ namespace DirSyncSFTP
     /// <summary>
     /// Interaction logic for SelectWinScpExeDialog.xaml
     /// </summary>
-    public partial class SelectWinScpExeDialog : Window
+    public partial class SelectWinScpAssemblyDialog : Window
     {
-        public string ExeFilePath { get; private set; } = string.Empty;
+        public string AssemblyFilePath { get; private set; } = string.Empty;
         
-        public SelectWinScpExeDialog()
+        public SelectWinScpAssemblyDialog()
         {
             InitializeComponent();
         }
 
-        private void ButtonPickWinScpExeFile_OnClick(object sender, RoutedEventArgs e)
+        private void ButtonPickWinScpAssemblyFile_OnClick(object sender, RoutedEventArgs e)
         {
             OpenFileDialog openFileDialog = new()
             {
                 Multiselect = false,
-                DefaultExt = ".exe",
-                Title = "Select WinSCP.exe",
-                Filter = "Windows Executable|*.exe",
+                DefaultExt = ".dll",
+                Title = "Select WinSCPnet.dll",
+                Filter = "Dynamically linked library|*.dll",
             };
 
             if (openFileDialog.ShowDialog() == true)
             {
-                ExeFilePath =  TextBoxWinScpExeFilePath.Text = openFileDialog.FileName;
-                ButtonConfirm.IsEnabled = ExeFilePath.NotNullNotEmpty() && File.Exists(ExeFilePath);
+                AssemblyFilePath =  TextBoxWinScpExeFilePath.Text = openFileDialog.FileName;
+                ButtonConfirm.IsEnabled = AssemblyFilePath.NotNullNotEmpty() && File.Exists(AssemblyFilePath);
             }
         }
 
         private void ButtonCancel_OnClick(object sender, RoutedEventArgs e)
         {
-            ExeFilePath = string.Empty;
+            AssemblyFilePath = string.Empty;
             DialogResult = false;
             Close();
         }

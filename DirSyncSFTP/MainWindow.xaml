@@ -37,9 +37,7 @@
             IsReadOnly="True"
             TextWrapping="Wrap"
             HorizontalScrollBarVisibility="Disabled"
-            VerticalScrollBarVisibility="Visible">
-            <!-- WinSCP sync procedure stdout will be logged in here. -->
-        </TextBox>
+            VerticalScrollBarVisibility="Visible" /> <!-- WinSCP sync procedure stdout will be logged in here. -->
 
         <Label
             Content="Synchronized directories:">
