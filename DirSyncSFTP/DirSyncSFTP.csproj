@@ -6,11 +6,14 @@
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
 	<UseWindowsForms>true</UseWindowsForms>
+	<ApplicationIcon>sftp.ico</ApplicationIcon>
+	<Company>Glitched Polygons</Company>
+	<AssemblyVersion>1.0.0</AssemblyVersion>
+	<FileVersion>1.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GlitchedPolygons.RepositoryPattern.SQLite" Version="1.0.3" />
-    <PackageReference Include="SSH.NET" Version="2020.0.2" />
+    <PackageReference Include="GlitchedPolygons.ExtensionMethods" Version="1.1.0" />
     <PackageReference Include="System.Drawing.Common" Version="7.0.0" />
   </ItemGroup>
 
@@ -18,6 +21,13 @@
     <None Update="SFTP.ICO">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="glitchedpolygons.ico" />
+    <Content Include="glitchedpolygons.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

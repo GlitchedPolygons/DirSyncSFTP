@@ -1,12 +1,73 @@
-﻿<Window x:Class="DirSyncSFTP.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:DirSyncSFTP"
-        mc:Ignorable="d"
-        Title="SFTP Directory Synchronizer" Height="450" Width="800">
-    <Grid>
+﻿<Window
+    x:Class="DirSyncSFTP.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="clr-namespace:DirSyncSFTP"
+    mc:Ignorable="d"
+    Title="SFTP Directory Synchronizer"
+    Height="512"
+    Width="512">
+    <StackPanel
+        Orientation="Vertical"
+        Margin="16">
 
-    </Grid>
+        <Label
+            x:Name="LabelSyncFrequencySlider"
+            Content="Synchronization interval: every 15min">
+        </Label>
+
+        <Slider
+            x:Name="SliderSyncInterval"
+            Interval="1"
+            Minimum="1"
+            Maximum="60"
+            Value="15"
+            ValueChanged="RangeBase_OnValueChanged">
+        </Slider>
+
+        <Label
+            Content="Console log:">
+        </Label>
+
+        <TextBox
+            x:Name="TextBoxConsoleLog"
+            Height="128"
+            IsReadOnly="True"
+            TextWrapping="Wrap"
+            HorizontalScrollBarVisibility="Disabled"
+            VerticalScrollBarVisibility="Visible">
+            <!-- WinSCP sync procedure stdout will be logged in here. -->
+        </TextBox>
+
+        <Label
+            Content="Synchronized directories:">
+        </Label>
+
+        <StackPanel
+            Orientation="Horizontal"
+            VerticalAlignment="Center"
+            Margin="0 8 0 0">
+            <Image
+                Source="glitchedpolygons.ico"
+                Width="28"
+                Height="28">
+            </Image>
+            <Label
+                Content="Copyright © 2023, Raphael Beck | Glitched Polygons"
+                VerticalAlignment="Center"
+                VerticalContentAlignment="Center">
+            </Label>
+            <Button
+                x:Name="ButtonVisitGP"
+                Margin="4 0 0 0"
+                Padding="8 0 8 0"
+                Height="22"
+                Click="ButtonVisitGP_OnClick">
+                Visit homepage
+            </Button>
+        </StackPanel>
+
+    </StackPanel>
 </Window>
