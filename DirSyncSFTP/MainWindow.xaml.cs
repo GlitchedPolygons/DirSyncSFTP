@@ -74,7 +74,7 @@ namespace DirSyncSFTP
 
             if (!newInstance)
             {
-                MessageBox.Show("There is already an instance of DirSyncSFTP.exe running... or crawling ;D");
+                MessageBox.Show("There is already an instance of DirSyncSFTP.exe running... or crawling ;D"); // TODO: use dialog here that blocks everything!
                 Application.Current.Shutdown();
             }
 
@@ -167,7 +167,7 @@ namespace DirSyncSFTP
 
             jsonPrefs.Save();
 
-            AppendLineToConsoleOutputTextBox("Copyright (C) 2023 Raphael Beck\nThis is free, GPLv3-licensed software. Enjoy :D");
+            TextBoxConsoleLog.Text = "Copyright (C) 2023 Raphael Beck\nThis is free, GPLv3-licensed software. Enjoy :D\n\n";
 
             synchronizedDirectories = new SynchronizedDirectories(jsonPrefs);
             synchronizedDirectories.Load();
@@ -283,7 +283,7 @@ namespace DirSyncSFTP
 
                 if (line.NotNullNotEmpty())
                 {
-                    TextBoxConsoleLog.Text += $"{line}\n\n";
+                    TextBoxConsoleLog.Text += $"[{DateTime.Now.ToString("dd. MMM. yyyy HH:mm")}]\n{line}\n\n";
                 }
 
                 TextBoxConsoleLog.ScrollToEnd();
@@ -448,6 +448,10 @@ namespace DirSyncSFTP
             if (dialog.ShowDialog() is true)
             {
                 // todo: check if dir is already tracked and show err dialog popup if so
+            }
+            else
+            {
+                AppendLineToConsoleOutputTextBox("Synchronized directory setup dialog cancelled.");
             }
         }
 
