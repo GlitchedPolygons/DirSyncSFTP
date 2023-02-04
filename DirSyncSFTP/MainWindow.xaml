@@ -25,8 +25,10 @@
     xmlns:local="clr-namespace:DirSyncSFTP"
     mc:Ignorable="d"
     Title="SFTP Directory Synchronizer"
+    MinHeight="512"
     Height="512"
-    Width="512">
+    Width="512"
+    MinWidth="256">
 
     <StackPanel
         Orientation="Vertical"
@@ -64,6 +66,7 @@
             Height="128" />
 
         <StackPanel
+            Margin="0 8 0 0"
             Orientation="Horizontal">
 
             <Button
@@ -77,7 +80,7 @@
 
             <Button
                 x:Name="ButtonRemoveSelectedSyncDir"
-                Margin="0"
+                Margin="8 0 0 0"
                 Padding="8 0 8 0"
                 Height="22"
                 IsEnabled="False"

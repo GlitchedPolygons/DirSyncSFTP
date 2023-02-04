@@ -443,7 +443,12 @@ namespace DirSyncSFTP
 
         private void ButtonAddNewSyncDir_OnClick(object sender, RoutedEventArgs e)
         {
-            throw new NotImplementedException();
+            var dialog = new AddNewSynchronizedDirectoryDialog();
+
+            if (dialog.ShowDialog() is true)
+            {
+                // todo: check if dir is already tracked and show err dialog popup if so
+            }
         }
 
         private void ButtonRemoveSelectedSyncDir_OnClick(object sender, RoutedEventArgs e)

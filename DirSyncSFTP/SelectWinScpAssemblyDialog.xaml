@@ -27,13 +27,12 @@
     Title="Select WinSCPnet.dll"
     Height="256"
     Width="512">
+    
     <StackPanel
         Orientation="Vertical"
         Margin="16">
         
-        <Label Content="Please select the WinSCPnet.dll file to use for synchronizing your directories.&#x0a;It usually resides in the same directory where WinSCP.exe is installed.">
-            
-        </Label>
+        <Label Content="Please select the WinSCPnet.dll file to use for synchronizing your directories.&#x0a;It usually resides in the same directory where WinSCP.exe is installed." />
         
         <StackPanel
             Orientation="Horizontal"
