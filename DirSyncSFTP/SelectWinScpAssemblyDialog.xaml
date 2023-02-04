@@ -25,52 +25,56 @@
     xmlns:local="clr-namespace:DirSyncSFTP"
     mc:Ignorable="d"
     Title="Select WinSCPnet.dll"
-    Height="256"
-    Width="512">
-    
+    ResizeMode="NoResize"
+    MinHeight="256"
+    MinWidth="512"
+    MaxHeight="256"
+    MaxWidth="512">
+
     <StackPanel
         Orientation="Vertical"
         Margin="16">
-        
-        <Label Content="Please select the WinSCPnet.dll file to use for synchronizing your directories.&#x0a;It usually resides in the same directory where WinSCP.exe is installed." />
-        
+
+        <Label
+            Content="Please select the WinSCPnet.dll file to use for synchronizing your directories.&#x0a;It usually resides in the same directory where WinSCP.exe is installed." />
+
         <StackPanel
             Orientation="Horizontal"
             Height="25"
             Margin="0 8 0 0">
-            
+
             <TextBox
                 IsReadOnly="True"
                 Width="384"
                 x:Name="TextBoxWinScpExeFilePath">
             </TextBox>
-            
+
             <Button
                 x:Name="ButtonPickWinScpExeFile"
                 Padding="8 0 8 0"
                 Click="ButtonPickWinScpAssemblyFile_OnClick">
                 Browse
             </Button>
-            
+
         </StackPanel>
-        
+
         <Label
             Content="Please note that only WinSCP version 5.21.7 (or above) is supported!"
-            Margin="0 32 0 0">
+            Margin="0 42 0 0">
         </Label>
-        
+
         <StackPanel
             Orientation="Horizontal"
             Height="25"
             Margin="0 4 0 0">
-            
+
             <Button
                 x:Name="ButtonCancel"
                 Padding="8 0 8 0"
                 Click="ButtonCancel_OnClick">
                 Cancel
             </Button>
-            
+
             <Button
                 x:Name="ButtonConfirm"
                 IsEnabled="False"
@@ -79,9 +83,9 @@
                 Click="ButtonConfirm_OnClick">
                 Confirm
             </Button>
-            
+
         </StackPanel>
-        
+
     </StackPanel>
-    
+
 </Window>

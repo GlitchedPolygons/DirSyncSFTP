@@ -56,12 +56,14 @@ namespace DirSyncSFTP
     {
         private JsonPrefs jsonPrefs;
         private volatile bool quitting = false;
+        private volatile bool synchronizing = false;
 
         private readonly string baseDir;
         private readonly string filesListDir;
         private readonly string powershellSyncScriptFile;
         private readonly string powershellScanHostKeyFingerprintScriptFile;
 
+        private readonly NotifyIcon notifyIcon;
         private readonly KnownHosts knownHosts;
         private readonly SynchronizedDirectories synchronizedDirectories;
         private readonly IDictionary<string, ProcessStartInfo> processStartInfoCache = new ConcurrentDictionary<string, ProcessStartInfo>();
@@ -80,6 +82,7 @@ namespace DirSyncSFTP
 
             Closing += (_, _) =>
             {
+                AppendLineToConsoleOutputTextBox("Quitting...");
                 jsonPrefs?.Save();
                 quitting = true;
             };
@@ -111,6 +114,7 @@ namespace DirSyncSFTP
             }
 
             knownHosts = new KnownHosts(Path.Combine(baseDir, Constants.KNOWN_HOSTS_FILENAME));
+
             powershellSyncScriptFile = Path.Combine(baseDir, Constants.POWERSHELL_SYNC_SCRIPT_FILENAME);
             powershellScanHostKeyFingerprintScriptFile = Path.Combine(baseDir, Constants.POWERSHELL_SCAN_HOST_KEY_FP_SCRIPT_FILENAME);
 
@@ -174,13 +178,24 @@ namespace DirSyncSFTP
 
             SliderSyncInterval.Value = Math.Clamp(jsonPrefs.GetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES, 15), 1, 60);
 
-            using NotifyIcon notifyIcon = new();
+            notifyIcon = new NotifyIcon
+            {
+                Icon = new System.Drawing.Icon("sftp.ico"),
+                Visible = true,
+            };
 
-            notifyIcon.Icon = new System.Drawing.Icon("sftp.ico");
-            notifyIcon.Visible = true;
             notifyIcon.Click += OnNotifyIconClick;
 
-            _ = Task.Run(Sync);
+            ListBoxSyncDirs.SelectionChanged += ListBoxSyncDirsOnSelectionChanged;
+
+            Task.Run(Sync);
+        }
+
+        private void OnNotifyIconClick(object? sender, EventArgs args)
+        {
+            Show();
+
+            WindowState = WindowState.Normal;
         }
 
         private void ExecuteOnUIThread(Action action)
@@ -208,13 +223,6 @@ namespace DirSyncSFTP
             }
         }
 
-        private void OnNotifyIconClick(object? sender, EventArgs args)
-        {
-            Show();
-
-            WindowState = WindowState.Normal;
-        }
-
         protected override void OnStateChanged(EventArgs e)
         {
             if (WindowState == WindowState.Minimized)
@@ -223,6 +231,11 @@ namespace DirSyncSFTP
             }
 
             base.OnStateChanged(e);
+        }
+
+        private void ListBoxSyncDirsOnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            ButtonRemoveSelectedSyncDir.IsEnabled = ListBoxSyncDirs.SelectedItem is not null;
         }
 
         private async Task<string> ScanHostKeyFingerprint(string hostName, int portNumber = 22)
@@ -273,7 +286,7 @@ namespace DirSyncSFTP
             {
                 if (TextBoxConsoleLog.Text.Split('\n').Length > jsonPrefs.GetInt(Constants.PrefKeys.MAX_CONSOLE_OUTPUT_LINECOUNT, 1024))
                 {
-                    TextBoxConsoleLog.Text = string.Empty;
+                    TextBoxConsoleLog.Text = "(truncated old entries...)\n\n";
                 }
 
                 if (line.EndsWith('\n'))
@@ -283,7 +296,7 @@ namespace DirSyncSFTP
 
                 if (line.NotNullNotEmpty())
                 {
-                    TextBoxConsoleLog.Text += $"[{DateTime.Now.ToString("dd. MMM. yyyy HH:mm")}]\n{line}\n\n";
+                    TextBoxConsoleLog.Text += $"[{DateTime.Now.ToString("dd. MMM. yyyy HH:mm:ss")}]\n{line}\n\n";
                 }
 
                 TextBoxConsoleLog.ScrollToEnd();
@@ -296,83 +309,102 @@ namespace DirSyncSFTP
 
             while (!quitting)
             {
-                jsonPrefs.SetLong(Constants.PrefKeys.LAST_SYNC_UTC, DateTime.UtcNow.ToUnixTimeSeconds());
-                await jsonPrefs.SaveAsync();
-
-                if (synchronizedDirectories.Dictionary.NullOrEmpty())
-                {
-                    AppendLineToConsoleOutputTextBox($"List of synchronized directories is empty. Add a new entry to get started!");
-                }
-                else
-                {
-                    foreach ((string key, var synchronizedDirectory) in synchronizedDirectories.Dictionary)
-                    {
-                        try
-                        {
-                            AppendLineToConsoleOutputTextBox($"Synchronizing {key}");
-
-                            if (!Directory.Exists(synchronizedDirectory.LocalDirectory))
-                            {
-                                AppendLineToConsoleOutputTextBox($"ERROR: Local directory \"{synchronizedDirectory.LocalDirectory}\" not found!");
-                                continue;
-                            }
-
-                            if (!knownHosts.Dictionary.TryGetValue($"{synchronizedDirectory.Host}:{synchronizedDirectory.Port}", out string? fingerprint))
-                            {
-                                AppendLineToConsoleOutputTextBox($"ERROR: Key fingerprint for host \"{synchronizedDirectory.Host}:{synchronizedDirectory.Port}\" not found in local cache!");
-                                continue;
-                            }
-
-                            AppendLineToConsoleOutputTextBox("Synchronizing... Please be patient: depending on how big the directory trees are this might take a while!");
-
-                            string args =
-                                $"-NoProfile -ExecutionPolicy ByPass & '{powershellSyncScriptFile}' -assemblyPath '{jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH)}' -hostName '{synchronizedDirectory.Host}' -portNumber '{synchronizedDirectory.Port}' -username '{synchronizedDirectory.Username}' -password '{synchronizedDirectory.Password}' -fingerprint '{fingerprint}' -localPath '{synchronizedDirectory.LocalDirectory}' -remotePath '{synchronizedDirectory.RemoteDirectory}' -listPath '{Path.Combine(filesListDir, synchronizedDirectory.GetDictionaryKey().SHA256())}' -sshKey '{synchronizedDirectory.SshKeyFilePath}' -sshKeyPassphrase '{synchronizedDirectory.SshKeyPassphrase}' ";
-
-                            string argsHash = args.SHA256();
-
-                            if (!processStartInfoCache.TryGetValue(argsHash, out var processStartInfo))
-                            {
-                                processStartInfoCache[argsHash] = processStartInfo = new ProcessStartInfo
-                                {
-                                    FileName = "powershell.exe",
-                                    Arguments = args,
-                                    CreateNoWindow = true,
-                                    UseShellExecute = false,
-                                    RedirectStandardError = true,
-                                    RedirectStandardOutput = true,
-                                };
-                            }
-
-                            using var process = Process.Start(processStartInfo);
-
-                            if (process is null)
-                            {
-                                continue;
-                            }
-
-                            process.ErrorDataReceived += OnProcessErrorDataReceived;
-                            process.OutputDataReceived += OnProcessOutputDataReceived;
-
-                            process.BeginErrorReadLine();
-                            process.BeginOutputReadLine();
-
-                            while (!process.HasExited)
-                            {
-                                await Task.Delay(512);
-                            }
-                        }
-                        catch (Exception e)
-                        {
-                            AppendLineToConsoleOutputTextBox($"ERROR while synchronizing \"{key}\" => {e.ToString()}");
-                        }
-                    }
-                }
+                await PerformSync();
 #if DEBUG
                 await Task.Delay(TimeSpan.FromSeconds(15));
 #else
                 await Task.Delay(TimeSpan.FromMinutes(jsonPrefs.GetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES)));
 #endif
             }
+        }
+
+        private async Task PerformSync()
+        {
+            if (synchronizing)
+            {
+                return;
+            }
+
+            synchronizing = true;
+
+            jsonPrefs.SetLong(Constants.PrefKeys.LAST_SYNC_UTC, DateTime.UtcNow.ToUnixTimeSeconds());
+            await jsonPrefs.SaveAsync();
+
+            if (synchronizedDirectories.Dictionary.NullOrEmpty())
+            {
+                AppendLineToConsoleOutputTextBox($"List of synchronized directories is empty. Add a new entry to get started!");
+            }
+            else
+            {
+                foreach ((string key, var synchronizedDirectory) in synchronizedDirectories.Dictionary)
+                {
+                    try
+                    {
+                        AppendLineToConsoleOutputTextBox($"Synchronizing {key}");
+
+                        if (!Directory.Exists(synchronizedDirectory.LocalDirectory))
+                        {
+                            AppendLineToConsoleOutputTextBox($"ERROR: Local directory \"{synchronizedDirectory.LocalDirectory}\" not found!");
+                            continue;
+                        }
+
+                        if (!knownHosts.Dictionary.TryGetValue($"{synchronizedDirectory.Host}:{synchronizedDirectory.Port}", out string? fingerprint))
+                        {
+                            AppendLineToConsoleOutputTextBox($"ERROR: Key fingerprint for host \"{synchronizedDirectory.Host}:{synchronizedDirectory.Port}\" not found in local cache!");
+                            continue;
+                        }
+
+                        AppendLineToConsoleOutputTextBox("Synchronizing... Please be patient: depending on how big the directory trees are this might take a while!");
+
+                        string args =
+                            $"-NoProfile -ExecutionPolicy ByPass & '{powershellSyncScriptFile}' -assemblyPath '{jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH)}' -hostName '{synchronizedDirectory.Host}' -portNumber '{synchronizedDirectory.Port}' -username '{synchronizedDirectory.Username}' -password '{synchronizedDirectory.Password}' -fingerprint '{fingerprint}' -localPath '{synchronizedDirectory.LocalDirectory}' -remotePath '{synchronizedDirectory.RemoteDirectory}' -listPath '{Path.Combine(filesListDir, synchronizedDirectory.GetDictionaryKey().SHA256())}' -sshKey '{synchronizedDirectory.SshKeyFilePath}' -sshKeyPassphrase '{synchronizedDirectory.SshKeyPassphrase}' ";
+
+                        string argsHash = args.SHA256();
+
+                        if (!processStartInfoCache.TryGetValue(argsHash, out var processStartInfo))
+                        {
+                            processStartInfoCache[argsHash] = processStartInfo = new ProcessStartInfo
+                            {
+                                FileName = "powershell.exe",
+                                Arguments = args,
+                                CreateNoWindow = true,
+                                UseShellExecute = false,
+                                RedirectStandardError = true,
+                                RedirectStandardOutput = true,
+                            };
+                        }
+
+                        using var process = Process.Start(processStartInfo);
+
+                        if (process is null)
+                        {
+                            continue;
+                        }
+
+                        process.ErrorDataReceived += OnProcessErrorDataReceived;
+                        process.OutputDataReceived += OnProcessOutputDataReceived;
+
+                        process.BeginErrorReadLine();
+                        process.BeginOutputReadLine();
+
+                        while (!process.HasExited)
+                        {
+                            await Task.Delay(512);
+                        }
+
+                        if (process.ExitCode != 0)
+                        {
+                            AppendLineToConsoleOutputTextBox($"ERROR: Something went wrong during the synchronization of \"{key}\"! Please check the logs and try redoing the setup process for the synchronized directory entry (if applicable).");
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        AppendLineToConsoleOutputTextBox($"ERROR while synchronizing \"{key}\" => {e.ToString()}");
+                    }
+                }
+            }
+
+            synchronizing = false;
         }
 
         private void OnProcessOutputDataReceived(object sender, DataReceivedEventArgs eventArgs)
@@ -447,6 +479,10 @@ namespace DirSyncSFTP
 
             if (dialog.ShowDialog() is true)
             {
+                SynchronizedDirectory setup = dialog.SynchronizedDirectory;
+
+                //if (setup.)
+
                 // todo: check if dir is already tracked and show err dialog popup if so
             }
             else
@@ -457,7 +493,36 @@ namespace DirSyncSFTP
 
         private void ButtonRemoveSelectedSyncDir_OnClick(object sender, RoutedEventArgs e)
         {
-            throw new NotImplementedException();
+            try
+            {
+                object selectedItem = ListBoxSyncDirs.SelectedItem;
+                string selectedItemString = selectedItem.ToString() ?? string.Empty;
+
+                if (synchronizedDirectories.Dictionary.Keys.Contains(selectedItemString))
+                {
+                    synchronizedDirectories.Dictionary.Remove(selectedItemString);
+                    ListBoxSyncDirs.Items.Remove(selectedItem);
+                    ListBoxSyncDirs.UnselectAll();
+                }
+            }
+            catch (Exception exception)
+            {
+                AppendLineToConsoleOutputTextBox($"ERROR: Failed to remove synchronized directory entry. Thrown exception: {exception.ToString()}");
+            }
+        }
+
+        private void ButtonForceSyncNow_OnClick(object sender, RoutedEventArgs e)
+        {
+            ButtonForceSyncNow.IsEnabled = false;
+
+            AppendLineToConsoleOutputTextBox("Force-sync initiated by user.");
+
+            Task.Run(PerformSync).ContinueWith(async _ =>
+            {
+                await Task.Delay(4096);
+
+                ExecuteOnUIThread(() => ButtonForceSyncNow.IsEnabled = true);
+            });
         }
     }
 }

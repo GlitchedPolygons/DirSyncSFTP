@@ -45,7 +45,7 @@ public partial class AddNewSynchronizedDirectoryDialog : Window
         using var dialog = new System.Windows.Forms.FolderBrowserDialog();
         
         dialog.ShowNewFolderButton = true;
-        dialog.Description = "Select the local directory on your side that you want to be in sync with the remote.";
+        dialog.Description = "Select the local directory on your system that you want to be in sync with the remote.";
 
         if (dialog.ShowDialog() is not System.Windows.Forms.DialogResult.OK)
         {
@@ -151,7 +151,7 @@ Please keep in mind though that at the moment, DirSyncSFTP is very raw and simpl
 
 It's not guaranteed that this works flawlessly. Until it's battle-tested thoroughly, ALWAYS KEEP A SEPARATE BACKUP OF YOUR DATA!
 
-________________________________________________________________________________
+_________________________________________________________
 
 Example config:
 
@@ -165,7 +165,7 @@ Username:
 mySftpUserOnTheServer
 
 Password: 
-Sup3rS4fePa$$W0rd_omfgPLStakeCare!
+Sup3rS4fePa$$W0rd_omfgPleaseTakeCare!
 
 Local path: 
 C:\Users\MyUserProfile\SomeFolder
