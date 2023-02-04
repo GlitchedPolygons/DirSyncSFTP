@@ -28,4 +28,9 @@ public class SynchronizedDirectory
     public string Password { get; set; }
     public string Host { get; set; }
     public ushort Port { get; set; }
+
+    public string GetDictionaryKey()
+    {
+        return $"{LocalDirectory}:{RemoteDirectory}";
+    }
 }

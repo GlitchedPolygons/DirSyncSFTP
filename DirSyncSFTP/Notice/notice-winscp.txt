@@ -1,0 +1,11 @@
+This software (DirSyncSFTP) makes use of WinSCP, whose application and source code 
+are also distributed under the GPL-3.0 license. Only its .NET wrapper library is
+MPL-2.0 licensed.
+
+To find out more about WinSCP, visit the official website now...
+
+  https://winscp.net
+
+...or check out its source code on GitHub:
+
+  https://github.com/winscp/winscp

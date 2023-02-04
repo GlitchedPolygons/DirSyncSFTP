@@ -25,6 +25,7 @@ public static class Constants
         public const string CLIENT_ID = "ClientId";
         public const string WINSCP_ASSEMBLY_PATH = "WinScpAssemblyPath";
         public const string LAST_SYNC_UTC = "LastSyncTimestampUTC";
+        public const string SYNC_DIRECTORIES = "SynchronizedDirectories";
         public const string SYNC_INTERVAL_MINUTES = "SyncIntervalMinutes";
         public const string VERSION_NUMBER_MAJOR = "VersionNumberMajor";
         public const string VERSION_NUMBER_MINOR = "VersionNumberMinor";
@@ -36,6 +37,7 @@ public static class Constants
     public const string KNOWN_HOSTS_FILENAME = "KnownHosts.json";
     public const string POWERSHELL_SYNC_SCRIPT_FILENAME = "Sync.ps1";
     public const string POWERSHELL_SCAN_HOST_KEY_FP_SCRIPT_FILENAME = "ScanHostKeyFingerprint.ps1";
+    public const string FILE_LISTS_DIRECTORY = "SynchronizedDirectories";
 
     public const string POWERSHELL_SCAN_HOST_KEY_FP_SCRIPT = @"
 param (

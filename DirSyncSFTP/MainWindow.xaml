@@ -27,14 +27,14 @@
     Title="SFTP Directory Synchronizer"
     Height="512"
     Width="512">
+
     <StackPanel
         Orientation="Vertical"
         Margin="16">
 
         <Label
             x:Name="LabelSyncFrequencySlider"
-            Content="Synchronization interval: every 15min">
-        </Label>
+            Content="Synchronization interval: every 15min" />
 
         <Slider
             x:Name="SliderSyncInterval"
@@ -46,8 +46,7 @@
         </Slider>
 
         <Label
-            Content="Console log:">
-        </Label>
+            Content="Console log:" />
 
         <TextBox
             x:Name="TextBoxConsoleLog"
@@ -58,23 +57,51 @@
             VerticalScrollBarVisibility="Visible" /> <!-- WinSCP sync procedure stdout will be logged in here. -->
 
         <Label
-            Content="Synchronized directories:">
-        </Label>
+            Content="Synchronized directories:" />
+
+        <ListBox
+            Name="ListBoxSyncDirs"
+            Height="128" />
+
+        <StackPanel
+            Orientation="Horizontal">
+
+            <Button
+                x:Name="ButtonAddNewSyncDir"
+                Margin="0"
+                Padding="8 0 8 0"
+                Height="22"
+                Click="ButtonAddNewSyncDir_OnClick">
+                Add new
+            </Button>
+
+            <Button
+                x:Name="ButtonRemoveSelectedSyncDir"
+                Margin="0"
+                Padding="8 0 8 0"
+                Height="22"
+                IsEnabled="False"
+                Click="ButtonRemoveSelectedSyncDir_OnClick">
+                Remove
+            </Button>
+
+        </StackPanel>
 
         <StackPanel
             Orientation="Horizontal"
             VerticalAlignment="Center"
-            Margin="0 8 0 0">
+            Margin="0 27 0 0">
             <Image
                 Source="glitchedpolygons.ico"
                 Width="28"
                 Height="28">
             </Image>
+
             <Label
                 Content="Copyright © 2023, Raphael Beck | Glitched Polygons"
                 VerticalAlignment="Center"
-                VerticalContentAlignment="Center">
-            </Label>
+                VerticalContentAlignment="Center" />
+
             <Button
                 x:Name="ButtonVisitGP"
                 Margin="4 0 0 0"
@@ -83,6 +110,7 @@
                 Click="ButtonVisitGP_OnClick">
                 Visit homepage
             </Button>
+
         </StackPanel>
 
     </StackPanel>
