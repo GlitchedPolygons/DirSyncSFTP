@@ -16,7 +16,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+using System;
 using System.Windows;
+using Microsoft.Win32;
 
 namespace DirSyncSFTP;
 
@@ -32,6 +34,24 @@ public partial class MainWindow
     {
         jsonPrefs?.SetBool(Constants.PrefKeys.AUTOSTART, CheckBoxAutostart.IsChecked == true);
         jsonPrefs?.Save();
+
+        try
+        {
+            RegistryKey rk = Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true)!;
+
+            if (CheckBoxAutostart.IsChecked == true)
+            {
+                rk.SetValue(System.Windows.Forms.Application.ProductName, System.Windows.Forms.Application.ExecutablePath);
+            }
+            else
+            {
+                rk.DeleteValue(System.Windows.Forms.Application.ProductName);
+            }
+        }
+        catch (Exception exception)
+        {
+            AppendLineToConsoleOutputTextBox($"ERROR: Failed to set autostart to {CheckBoxAutostart.IsChecked == true} - thrown exception: {exception.ToString()}");
+        }
     }
 
     private void CheckBoxStartMinimized_OnChecked(object sender, RoutedEventArgs e)
