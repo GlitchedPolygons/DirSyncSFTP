@@ -35,7 +35,7 @@ public static class StringExtensionMethods
     {
         return ProtectedData
             .Protect(str.UTF8GetBytes(), null, DataProtectionScope.CurrentUser)
-            .ToBase64String();
+            .ToBase64UrlString();
     }
 
     /// <summary>
@@ -46,7 +46,7 @@ public static class StringExtensionMethods
     public static string Unprotect(this string str)
     {
         return ProtectedData
-            .Unprotect(str.ToBytesFromBase64(), null, DataProtectionScope.CurrentUser)
+            .Unprotect(str.ToBytesFromBase64Url(), null, DataProtectionScope.CurrentUser)
             .UTF8GetString();
     }
 }
