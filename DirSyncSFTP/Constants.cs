@@ -42,6 +42,8 @@ public static class Constants
     public const string POWERSHELL_SYNC_SCRIPT_FILENAME = "Sync.ps1";
     public const string POWERSHELL_SCAN_HOST_KEY_FP_SCRIPT_FILENAME = "ScanHostKeyFingerprint.ps1";
     public const string FILE_LISTS_DIRECTORY = "SynchronizedDirectories";
+    public const string TRAY_TOOLTIP_IDLE = "DirSyncSFTP\nDouble-click to open\nRight-click to show context menu";
+    public const string TRAY_TOOLTIP_SYNCING = "DirSyncSFTP (synchronizing)\nDouble-click to open\nRight-click to show context menu";
 
     public const string POWERSHELL_SCAN_HOST_KEY_FP_SCRIPT = @"
 param (

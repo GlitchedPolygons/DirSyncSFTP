@@ -56,7 +56,7 @@ public partial class MainWindow
             return;
         }
 
-        synchronizing = true;
+        SetSynchronizingState(true);
 
         jsonPrefs.SetLong(Constants.PrefKeys.LAST_SYNC_UTC, DateTime.UtcNow.ToUnixTimeSeconds());
         await jsonPrefs.SaveAsync();
@@ -73,13 +73,13 @@ public partial class MainWindow
             }
         }
 
-        synchronizing = false;
+        SetSynchronizingState(false);
     }
 
     private async Task PerformSyncForDirectory(SynchronizedDirectory synchronizedDirectory)
     {
         string key = synchronizedDirectory.GetDictionaryKey();
-        
+
         try
         {
             AppendLineToConsoleOutputTextBox($"Synchronizing {key}... Please be patient: depending on how big the directory trees are this might take a while!");
@@ -195,5 +195,24 @@ public partial class MainWindow
         {
             AppendLineToConsoleOutputTextBox($"ERROR while synchronizing \"{key}\" => {e.ToString()}");
         }
+    }
+
+    private void SetSynchronizingState(bool nowSynchronizing)
+    {
+        ExecuteOnUIThread(() =>
+        {
+            if (nowSynchronizing)
+            {
+                synchronizing = true;
+                Title = "SFTP Directory Synchronizer (currently synchronizing...)";
+                notifyIcon.Text = Constants.TRAY_TOOLTIP_SYNCING;
+            }
+            else
+            {
+                synchronizing = false;
+                Title = "SFTP Directory Synchronizer";
+                notifyIcon.Text = Constants.TRAY_TOOLTIP_IDLE;
+            }
+        });
     }
 }

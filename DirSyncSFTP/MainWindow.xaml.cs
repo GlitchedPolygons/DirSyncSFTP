@@ -210,7 +210,7 @@ namespace DirSyncSFTP
             notifyIcon = new NotifyIcon
             {
                 Visible = true,
-                Text = "DirSyncSFTP\nDouble-click to open\nRight-click to show context menu",
+                Text = Constants.TRAY_TOOLTIP_IDLE,
                 Icon = new System.Drawing.Icon("sftp.ico"),
                 ContextMenuStrip = new ContextMenuStrip
                 {
@@ -222,7 +222,7 @@ namespace DirSyncSFTP
                     }
                 }
             };
-            
+
             notifyIcon.DoubleClick += TrayContextMenu_OnClickedOpen;
 
             ListBoxSyncDirs.SelectionChanged += ListBoxSyncDirsOnSelectionChanged;
