@@ -222,7 +222,7 @@ namespace DirSyncSFTP
                 }
             };
 
-            notifyIcon.Click += OnNotifyIconClick;
+            notifyIcon.Click += TrayIcon_OnClick;
 
             ListBoxSyncDirs.SelectionChanged += ListBoxSyncDirsOnSelectionChanged;
 
@@ -237,12 +237,6 @@ namespace DirSyncSFTP
         private void ExecuteOnUIThread(Action action)
         {
             Application.Current?.Dispatcher?.Invoke(action, DispatcherPriority.Normal);
-        }
-
-        private void OnNotifyIconClick(object? sender, EventArgs args)
-        {
-            notifyIcon.ContextMenuStrip.Show(System.Windows.Forms.Cursor.Position);
-            notifyIcon.ContextMenuStrip.Focus();
         }
 
         protected override void OnStateChanged(EventArgs e)
@@ -287,22 +281,6 @@ namespace DirSyncSFTP
             AppendLineToConsoleOutputTextBox("Quitting...");
             jsonPrefs?.Save();
             quitting = true;
-        }
-
-        private void TrayContextMenu_OnClickedQuit(object? sender, EventArgs e)
-        {
-            Quit();
-            Environment.Exit(0);
-        }
-
-        private void TrayContextMenu_OnClickedForceSyncNow(object? sender, EventArgs e)
-        {
-            Task.Run(PerformSync);
-        }
-
-        private void TrayContextMenu_OnClickedOpen(object? sender, EventArgs e)
-        {
-            Open();
         }
     }
 }
