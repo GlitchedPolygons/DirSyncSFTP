@@ -184,6 +184,9 @@
                             Header="Delete"
                             Click="ButtonRemoveSelectedSyncDir_OnClick" />
                         <MenuItem
+                            Header="Force sync only this"
+                            Click="SynchronizedDirectory_ContextMenu_OnClickForceSyncSpecificDir" />
+                        <MenuItem
                             Header="Scan host key fingerprint"
                             Click="SynchronizedDirectory_ContextMenu_OnClickScanFingerprint" />
                         <MenuItem

@@ -44,7 +44,7 @@ public partial class MainWindow
 #if DEBUG
             await Task.Delay(TimeSpan.FromSeconds(15));
 #else
-                await Task.Delay(TimeSpan.FromMinutes(jsonPrefs.GetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES)));
+            await Task.Delay(TimeSpan.FromMinutes(jsonPrefs.GetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES)));
 #endif
         }
     }
@@ -67,126 +67,133 @@ public partial class MainWindow
         }
         else
         {
-            foreach ((string key, var synchronizedDirectory) in synchronizedDirectories.Dictionary)
+            foreach (var (_, synchronizedDirectory) in synchronizedDirectories.Dictionary)
             {
-                try
-                {
-                    AppendLineToConsoleOutputTextBox($"Synchronizing {key}... Please be patient: depending on how big the directory trees are this might take a while!");
-
-                    if (!Directory.Exists(synchronizedDirectory.LocalDirectory))
-                    {
-                        AppendLineToConsoleOutputTextBox($"ERROR: Local directory \"{synchronizedDirectory.LocalDirectory}\" not found!");
-                        continue;
-                    }
-
-                    string host = $"{synchronizedDirectory.Host}:{synchronizedDirectory.Port}";
-
-                    if (!knownHosts.Dictionary.TryGetValue(host, out string? storedFingerprint))
-                    {
-                        AppendLineToConsoleOutputTextBox($"ERROR: Key fingerprint for host \"{host}\" not found in local cache!");
-                        continue;
-                    }
-
-                    string fingerprint = await ScanHostKeyFingerprint(synchronizedDirectory.Host);
-
-                    if (storedFingerprint != fingerprint)
-                    {
-                        AppendLineToConsoleOutputTextBox($"ERROR: The host key fingerprint for \"{host}\" (DirSync: \"{synchronizedDirectory.GetDictionaryKey()}\" - fingerprint: \"{fingerprint}\") does not match the locally stored one to which you agreed during setup of the synchronized directory: \"{storedFingerprint}\". The host either changed its key or, well... Let's hope it's not a MITM attack!");
-                        continue;
-                    }
-
-                    var argsStringBuilder = new StringBuilder(1024);
-
-                    argsStringBuilder.Append("-NoProfile -ExecutionPolicy ByPass & '");
-                    argsStringBuilder.Append(powershellSyncScriptFile);
-
-                    argsStringBuilder.Append("' -assemblyPath '");
-                    argsStringBuilder.Append(jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH));
-
-                    argsStringBuilder.Append("' -hostName '");
-                    argsStringBuilder.Append(synchronizedDirectory.Host);
-
-                    argsStringBuilder.Append("' -portNumber '");
-                    argsStringBuilder.Append(synchronizedDirectory.Port);
-
-                    argsStringBuilder.Append("' -username '");
-                    argsStringBuilder.Append(synchronizedDirectory.Username.UTF8GetBytes().ToBase64String());
-
-                    argsStringBuilder.Append("' -fingerprint '");
-                    argsStringBuilder.Append(storedFingerprint.UTF8GetBytes().ToBase64String());
-
-                    argsStringBuilder.Append("' -localPath '");
-                    argsStringBuilder.Append(synchronizedDirectory.LocalDirectory.UTF8GetBytes().ToBase64String());
-
-                    argsStringBuilder.Append("' -remotePath '");
-                    argsStringBuilder.Append(synchronizedDirectory.RemoteDirectory.UTF8GetBytes().ToBase64String());
-
-                    argsStringBuilder.Append("' -listPath '");
-                    argsStringBuilder.Append(Path.Combine(filesListDir, synchronizedDirectory.GetDictionaryKey().SHA256()).UTF8GetBytes().ToBase64String());
-
-                    if (synchronizedDirectory.Password.NotNullNotEmpty())
-                    {
-                        argsStringBuilder.Append("' -password '");
-                        argsStringBuilder.Append(synchronizedDirectory.Password.UTF8GetBytes().ToBase64String());
-                    }
-
-                    if (synchronizedDirectory.SshKeyFilePath.NotNullNotEmpty())
-                    {
-                        argsStringBuilder.Append("' -sshKey '");
-                        argsStringBuilder.Append(synchronizedDirectory.SshKeyFilePath.UTF8GetBytes().ToBase64String());
-
-                        argsStringBuilder.Append("' -sshKeyPassphrase '");
-                        argsStringBuilder.Append(synchronizedDirectory.SshKeyPassphrase.UTF8GetBytes().ToBase64String());
-                    }
-
-                    argsStringBuilder.Append("' ");
-
-                    string args = argsStringBuilder.ToString();
-                    string argsHash = args.SHA256();
-
-                    if (!processStartInfoCache.TryGetValue(argsHash, out var processStartInfo))
-                    {
-                        processStartInfoCache[argsHash] = processStartInfo = new ProcessStartInfo
-                        {
-                            FileName = "powershell.exe",
-                            Arguments = args,
-                            CreateNoWindow = true,
-                            UseShellExecute = false,
-                            RedirectStandardError = true,
-                            RedirectStandardOutput = true,
-                        };
-                    }
-
-                    using var process = Process.Start(processStartInfo);
-
-                    if (process is null)
-                    {
-                        continue;
-                    }
-
-                    process.ErrorDataReceived += OnProcessErrorDataReceived;
-                    process.OutputDataReceived += OnProcessOutputDataReceived;
-
-                    process.BeginErrorReadLine();
-                    process.BeginOutputReadLine();
-
-                    while (!process.HasExited)
-                    {
-                        await Task.Delay(512);
-                    }
-
-                    if (process.ExitCode != 0)
-                    {
-                        AppendLineToConsoleOutputTextBox($"ERROR: Something went wrong during the synchronization of \"{key}\"! Please check the logs and try redoing the setup process for the synchronized directory entry (if applicable).");
-                    }
-                }
-                catch (Exception e)
-                {
-                    AppendLineToConsoleOutputTextBox($"ERROR while synchronizing \"{key}\" => {e.ToString()}");
-                }
+                await PerformSyncForDirectory(synchronizedDirectory);
             }
         }
 
         synchronizing = false;
+    }
+
+    private async Task PerformSyncForDirectory(SynchronizedDirectory synchronizedDirectory)
+    {
+        string key = synchronizedDirectory.GetDictionaryKey();
+        
+        try
+        {
+            AppendLineToConsoleOutputTextBox($"Synchronizing {key}... Please be patient: depending on how big the directory trees are this might take a while!");
+
+            if (!Directory.Exists(synchronizedDirectory.LocalDirectory))
+            {
+                AppendLineToConsoleOutputTextBox($"ERROR: Local directory \"{synchronizedDirectory.LocalDirectory}\" not found!");
+                return;
+            }
+
+            string host = $"{synchronizedDirectory.Host}:{synchronizedDirectory.Port}";
+
+            if (!knownHosts.Dictionary.TryGetValue(host, out string? storedFingerprint))
+            {
+                AppendLineToConsoleOutputTextBox($"ERROR: Key fingerprint for host \"{host}\" not found in local cache!");
+                return;
+            }
+
+            string fingerprint = await ScanHostKeyFingerprint(synchronizedDirectory.Host);
+
+            if (storedFingerprint != fingerprint)
+            {
+                AppendLineToConsoleOutputTextBox($"ERROR: The host key fingerprint for \"{host}\" (DirSync: \"{synchronizedDirectory.GetDictionaryKey()}\" - fingerprint: \"{fingerprint}\") does not match the locally stored one to which you agreed during setup of the synchronized directory: \"{storedFingerprint}\". The host either changed its key or, well... Let's hope it's not a MITM attack!");
+                return;
+            }
+
+            var argsStringBuilder = new StringBuilder(1024);
+
+            argsStringBuilder.Append("-NoProfile -ExecutionPolicy ByPass & '");
+            argsStringBuilder.Append(powershellSyncScriptFile);
+
+            argsStringBuilder.Append("' -assemblyPath '");
+            argsStringBuilder.Append(jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH));
+
+            argsStringBuilder.Append("' -hostName '");
+            argsStringBuilder.Append(synchronizedDirectory.Host);
+
+            argsStringBuilder.Append("' -portNumber '");
+            argsStringBuilder.Append(synchronizedDirectory.Port);
+
+            argsStringBuilder.Append("' -username '");
+            argsStringBuilder.Append(synchronizedDirectory.Username.UTF8GetBytes().ToBase64String());
+
+            argsStringBuilder.Append("' -fingerprint '");
+            argsStringBuilder.Append(storedFingerprint.UTF8GetBytes().ToBase64String());
+
+            argsStringBuilder.Append("' -localPath '");
+            argsStringBuilder.Append(synchronizedDirectory.LocalDirectory.UTF8GetBytes().ToBase64String());
+
+            argsStringBuilder.Append("' -remotePath '");
+            argsStringBuilder.Append(synchronizedDirectory.RemoteDirectory.UTF8GetBytes().ToBase64String());
+
+            argsStringBuilder.Append("' -listPath '");
+            argsStringBuilder.Append(Path.Combine(filesListDir, synchronizedDirectory.GetDictionaryKey().SHA256()).UTF8GetBytes().ToBase64String());
+
+            if (synchronizedDirectory.Password.NotNullNotEmpty())
+            {
+                argsStringBuilder.Append("' -password '");
+                argsStringBuilder.Append(synchronizedDirectory.Password.UTF8GetBytes().ToBase64String());
+            }
+
+            if (synchronizedDirectory.SshKeyFilePath.NotNullNotEmpty())
+            {
+                argsStringBuilder.Append("' -sshKey '");
+                argsStringBuilder.Append(synchronizedDirectory.SshKeyFilePath.UTF8GetBytes().ToBase64String());
+
+                argsStringBuilder.Append("' -sshKeyPassphrase '");
+                argsStringBuilder.Append(synchronizedDirectory.SshKeyPassphrase.UTF8GetBytes().ToBase64String());
+            }
+
+            argsStringBuilder.Append("' ");
+
+            string args = argsStringBuilder.ToString();
+            string argsHash = args.SHA256();
+
+            if (!processStartInfoCache.TryGetValue(argsHash, out var processStartInfo))
+            {
+                processStartInfoCache[argsHash] = processStartInfo = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = args,
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                };
+            }
+
+            using var process = Process.Start(processStartInfo);
+
+            if (process is null)
+            {
+                return;
+            }
+
+            process.ErrorDataReceived += OnProcessErrorDataReceived;
+            process.OutputDataReceived += OnProcessOutputDataReceived;
+
+            process.BeginErrorReadLine();
+            process.BeginOutputReadLine();
+
+            while (!process.HasExited)
+            {
+                await Task.Delay(512);
+            }
+
+            if (process.ExitCode != 0)
+            {
+                AppendLineToConsoleOutputTextBox($"ERROR: Something went wrong during the synchronization of \"{key}\"! Please check the logs and try redoing the setup process for the synchronized directory entry (if applicable).");
+            }
+        }
+        catch (Exception e)
+        {
+            AppendLineToConsoleOutputTextBox($"ERROR while synchronizing \"{key}\" => {e.ToString()}");
+        }
     }
 }

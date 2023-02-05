@@ -47,6 +47,22 @@ public partial class MainWindow
         }
     }
 
+    private void SynchronizedDirectory_ContextMenu_OnClickForceSyncSpecificDir(object sender, RoutedEventArgs e)
+    {
+        if (ListBoxSyncDirs.SelectedIndex == -1)
+        {
+            return;
+        }
+        
+        object selectedItem = ListBoxSyncDirs.SelectedItem;
+        string selectedItemString = selectedItem.ToString() ?? string.Empty;
+
+        if (synchronizedDirectories.Dictionary.TryGetValue(selectedItemString, out SynchronizedDirectory? synchronizedDirectory) && Directory.Exists(synchronizedDirectory.LocalDirectory))
+        {
+            Task.Run(() => PerformSyncForDirectory(synchronizedDirectory));
+        }
+    }
+
     private void SynchronizedDirectory_ContextMenu_OnClickScanFingerprint(object sender, RoutedEventArgs e)
     {
         if (ListBoxSyncDirs.SelectedIndex == -1)
