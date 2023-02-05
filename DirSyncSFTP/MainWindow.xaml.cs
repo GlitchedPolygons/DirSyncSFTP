@@ -56,7 +56,7 @@ namespace DirSyncSFTP
         private readonly SynchronizedDirectories synchronizedDirectories;
         private readonly IDictionary<string, ProcessStartInfo> processStartInfoCache = new ConcurrentDictionary<string, ProcessStartInfo>();
 
-        private static Mutex mutex;
+        private static Mutex mutex = null!;
 
         public MainWindow()
         {
