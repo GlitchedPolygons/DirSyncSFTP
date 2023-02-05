@@ -29,7 +29,6 @@ using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Threading;
 using GlitchedPolygons.ExtensionMethods;
-
 using Path = System.IO.Path;
 using MessageBox = System.Windows.MessageBox;
 using Application = System.Windows.Application;
@@ -77,12 +76,16 @@ namespace DirSyncSFTP
                 {
                     e.Cancel = true;
                     Hide();
+
+                    if (jsonPrefs?.GetBool(Constants.PrefKeys.TRAY_BALLOON_SHOWN) is false)
+                    {
+                        notifyIcon?.ShowBalloonTip(1024, "It's still running", "If you want to quit DirSyncSFTP, you can do so by right-clicking on its taskbar tray icon.", ToolTipIcon.Info);
+                        jsonPrefs?.SetBool(Constants.PrefKeys.TRAY_BALLOON_SHOWN, true);
+                    }
                 }
                 else
                 {
-                    AppendLineToConsoleOutputTextBox("Quitting...");
-                    jsonPrefs?.Save();
-                    quitting = true;
+                    Quit();
                 }
             };
 
@@ -208,6 +211,15 @@ namespace DirSyncSFTP
             {
                 Icon = new System.Drawing.Icon("sftp.ico"),
                 Visible = true,
+                ContextMenuStrip = new ContextMenuStrip
+                {
+                    Items =
+                    {
+                        new ToolStripMenuItem("Open", null, TrayContextMenu_OnClickedOpen),
+                        new ToolStripMenuItem("Force sync now", null, TrayContextMenu_OnClickedForceSyncNow),
+                        new ToolStripMenuItem("Quit", null, TrayContextMenu_OnClickedQuit),
+                    }
+                }
             };
 
             notifyIcon.Click += OnNotifyIconClick;
@@ -221,7 +233,7 @@ namespace DirSyncSFTP
 
             Task.Run(Sync);
         }
-        
+
         private void ExecuteOnUIThread(Action action)
         {
             Application.Current?.Dispatcher?.Invoke(action, DispatcherPriority.Normal);
@@ -229,11 +241,10 @@ namespace DirSyncSFTP
 
         private void OnNotifyIconClick(object? sender, EventArgs args)
         {
-            Show();
-
-            WindowState = WindowState.Normal;
+            notifyIcon.ContextMenuStrip.Show(System.Windows.Forms.Cursor.Position);
+            notifyIcon.ContextMenuStrip.Focus();
         }
-        
+
         protected override void OnStateChanged(EventArgs e)
         {
             if (WindowState == WindowState.Minimized)
@@ -243,7 +254,7 @@ namespace DirSyncSFTP
 
             base.OnStateChanged(e);
         }
-        
+
         private void CreateScriptFileIfNotExistsOrWrong(string scriptFilePath, string script)
         {
             if (!File.Exists(scriptFilePath))
@@ -262,6 +273,36 @@ namespace DirSyncSFTP
                 }
                 powershellScriptFileInfo.IsReadOnly = true;
             }
+        }
+
+        private void Open()
+        {
+            Show();
+
+            WindowState = WindowState.Normal;
+        }
+
+        private void Quit()
+        {
+            AppendLineToConsoleOutputTextBox("Quitting...");
+            jsonPrefs?.Save();
+            quitting = true;
+        }
+
+        private void TrayContextMenu_OnClickedQuit(object? sender, EventArgs e)
+        {
+            Quit();
+            Environment.Exit(0);
+        }
+
+        private void TrayContextMenu_OnClickedForceSyncNow(object? sender, EventArgs e)
+        {
+            Task.Run(PerformSync);
+        }
+
+        private void TrayContextMenu_OnClickedOpen(object? sender, EventArgs e)
+        {
+            Open();
         }
     }
 }

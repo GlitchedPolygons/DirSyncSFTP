@@ -25,6 +25,7 @@ public static class Constants
         public const string CLIENT_ID = "ClientId";
         public const string AUTOSTART = "Autostart";
         public const string START_MINIMIZED = "StartMinimized";
+        public const string TRAY_BALLOON_SHOWN = "TrayBalloonShown";
         public const string WINSCP_ASSEMBLY_PATH = "WinScpAssemblyPath";
         public const string LAST_SYNC_UTC = "LastSyncTimestampUTC";
         public const string SYNC_DIRECTORIES = "SynchronizedDirectories";
