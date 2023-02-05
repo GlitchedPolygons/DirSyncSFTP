@@ -146,6 +146,11 @@ namespace DirSyncSFTP
                 jsonPrefs.SetString(Constants.PrefKeys.SYNC_DIRECTORIES, "{}".Protect());
             }
 
+            if (!jsonPrefs.HasKey(Constants.PrefKeys.SYNC_INTERVAL_MINUTES))
+            {
+                jsonPrefs.SetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES, 15);
+            }
+
             if (jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH).NullOrEmpty() || !File.Exists(jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH)))
             {
                 if (File.Exists(@"C:\Program Files (x86)\WinSCP\WinSCPnet.dll"))
