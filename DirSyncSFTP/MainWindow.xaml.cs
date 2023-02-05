@@ -143,7 +143,7 @@ namespace DirSyncSFTP
 
             if (!jsonPrefs.HasKey(Constants.PrefKeys.SYNC_DIRECTORIES))
             {
-                jsonPrefs.SetString(Constants.PrefKeys.SYNC_DIRECTORIES, "[]".Protect());
+                jsonPrefs.SetString(Constants.PrefKeys.SYNC_DIRECTORIES, "{}".Protect());
             }
 
             if (jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH).NullOrEmpty() || !File.Exists(jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH)))
