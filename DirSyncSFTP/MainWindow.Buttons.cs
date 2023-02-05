@@ -99,7 +99,7 @@ public partial class MainWindow
                 _ = Task.Run(async () =>
                 {
                     await Task.Delay(1024);
-                    await PerformSync();
+                    await PerformSyncForDirectory(setup);
                 });
             }
             else
