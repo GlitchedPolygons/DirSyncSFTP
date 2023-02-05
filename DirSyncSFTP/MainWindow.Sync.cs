@@ -169,7 +169,7 @@ public partial class MainWindow
             }
 
             using var process = Process.Start(processStartInfo);
-
+            
             if (process is null)
             {
                 return;
@@ -183,6 +183,12 @@ public partial class MainWindow
 
             while (!process.HasExited)
             {
+                if (quitting)
+                {
+                    process.Kill();
+                    return;
+                }
+                
                 await Task.Delay(512);
             }
 
