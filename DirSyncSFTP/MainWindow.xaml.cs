@@ -46,6 +46,7 @@ namespace DirSyncSFTP
     {
         private JsonPrefs jsonPrefs;
         private volatile bool adding = false;
+        private volatile bool paused = false;
         private volatile bool quitting = false;
         private volatile bool synchronizing = false;
 
@@ -237,7 +238,7 @@ namespace DirSyncSFTP
             ButtonRemoveSelectedSyncDir.IsEnabled = ListBoxSyncDirs.SelectedItem is not null;
         }
 
-        private async Task<string> ScanHostKeyFingerprint(string hostName, int portNumber = 22)
+        private async Task<string> ScanHostKeyFingerprint(string hostName, ushort portNumber = 22)
         {
             string args =
                 $"-NoProfile -ExecutionPolicy ByPass & '{powershellScanHostKeyFingerprintScriptFile}' -assemblyPath '{jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH)}' -hostName {hostName} -portNumber {portNumber} ";
@@ -308,7 +309,14 @@ namespace DirSyncSFTP
 
             while (!quitting)
             {
+                if (paused)
+                {
+                    goto endOfLoop;
+                }
+
                 await PerformSync();
+
+                endOfLoop:
 #if DEBUG
                 await Task.Delay(TimeSpan.FromSeconds(15));
 #else
@@ -359,7 +367,7 @@ namespace DirSyncSFTP
 
                         if (storedFingerprint != fingerprint)
                         {
-                            AppendLineToConsoleOutputTextBox($"ERROR: The host's key fingerprint for \"{host}\" (DirSync: \"{synchronizedDirectory.GetDictionaryKey()}\" - fingerprint: \"{fingerprint}\") does not match the locally stored one to which you agreed during setup of the synchronized directory: \"{storedFingerprint}\". The host either changed its key or, well... Let's hope it's not a MITM attack!");
+                            AppendLineToConsoleOutputTextBox($"ERROR: The host key fingerprint for \"{host}\" (DirSync: \"{synchronizedDirectory.GetDictionaryKey()}\" - fingerprint: \"{fingerprint}\") does not match the locally stored one to which you agreed during setup of the synchronized directory: \"{storedFingerprint}\". The host either changed its key or, well... Let's hope it's not a MITM attack!");
                             continue;
                         }
 
@@ -367,28 +375,28 @@ namespace DirSyncSFTP
 
                         argsStringBuilder.Append("-NoProfile -ExecutionPolicy ByPass & '");
                         argsStringBuilder.Append(powershellSyncScriptFile);
-                        
+
                         argsStringBuilder.Append("' -assemblyPath '");
                         argsStringBuilder.Append(jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH));
-                        
+
                         argsStringBuilder.Append("' -hostName '");
                         argsStringBuilder.Append(synchronizedDirectory.Host);
-                        
+
                         argsStringBuilder.Append("' -portNumber '");
                         argsStringBuilder.Append(synchronizedDirectory.Port);
-                        
+
                         argsStringBuilder.Append("' -username '");
                         argsStringBuilder.Append(synchronizedDirectory.Username.UTF8GetBytes().ToBase64String());
-                        
+
                         argsStringBuilder.Append("' -fingerprint '");
                         argsStringBuilder.Append(storedFingerprint.UTF8GetBytes().ToBase64String());
-                        
+
                         argsStringBuilder.Append("' -localPath '");
                         argsStringBuilder.Append(synchronizedDirectory.LocalDirectory.UTF8GetBytes().ToBase64String());
-                        
+
                         argsStringBuilder.Append("' -remotePath '");
                         argsStringBuilder.Append(synchronizedDirectory.RemoteDirectory.UTF8GetBytes().ToBase64String());
-                        
+
                         argsStringBuilder.Append("' -listPath '");
                         argsStringBuilder.Append(Path.Combine(filesListDir, synchronizedDirectory.GetDictionaryKey().SHA256()).UTF8GetBytes().ToBase64String());
 
@@ -492,6 +500,8 @@ namespace DirSyncSFTP
             }
 
             adding = true;
+            
+            AppendLineToConsoleOutputTextBox("Adding new synchronized directory entry...");
 
             try
             {
@@ -545,14 +555,7 @@ namespace DirSyncSFTP
                         return;
                     }
 
-                    if (MessageBox.Show($"The host \"{setup.Host}:{setup.Port}\" reported the following public key fingerprint:\n\n{fingerprint}\n\nIs this correct? Do you trust it?", "Host key fingerprint check", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
-                    {
-                        AppendLineToConsoleOutputTextBox($"User rejected host \"{setup.Host}:{setup.Port}\"'s alleged public key fingerprint \"{fingerprint}\" - synchronized directory entry was not added.");
-                        return;
-                    }
-
-                    knownHosts.Dictionary[$"{setup.Host}:{setup.Port}"] = fingerprint;
-                    knownHosts.Save();
+                    SaveFingerprintIfTrusted(setup.Host, setup.Port, fingerprint);
 
                     synchronizedDirectories.Dictionary[newDictionaryKey] = setup;
                     synchronizedDirectories.Save();
@@ -582,6 +585,11 @@ namespace DirSyncSFTP
 
         private void ButtonRemoveSelectedSyncDir_OnClick(object sender, RoutedEventArgs e)
         {
+            if (ListBoxSyncDirs.SelectedIndex == -1)
+            {
+                return;
+            }
+
             try
             {
                 object selectedItem = ListBoxSyncDirs.SelectedItem;
@@ -591,7 +599,7 @@ namespace DirSyncSFTP
                 {
                     synchronizedDirectories.Dictionary.Remove(selectedItemString);
                     synchronizedDirectories.Save();
-                    
+
                     ListBoxSyncDirs.Items.Remove(selectedItem);
                     ListBoxSyncDirs.UnselectAll();
                 }
@@ -654,6 +662,110 @@ namespace DirSyncSFTP
                     throw;
                 }
             }
+        }
+
+        private void SynchronizedDirectory_ContextMenu_OnClickOpenDir(object sender, RoutedEventArgs e)
+        {
+            if (ListBoxSyncDirs.SelectedIndex == -1)
+            {
+                return;
+            }
+
+            object selectedItem = ListBoxSyncDirs.SelectedItem;
+            string selectedItemString = selectedItem.ToString() ?? string.Empty;
+
+            if (synchronizedDirectories.Dictionary.TryGetValue(selectedItemString, out SynchronizedDirectory? synchronizedDirectory) && Directory.Exists(synchronizedDirectory.LocalDirectory))
+            {
+                Process.Start("Explorer.exe", synchronizedDirectory.LocalDirectory);
+            }
+        }
+
+        private void SynchronizedDirectory_ContextMenu_OnClickScanFingerprint(object sender, RoutedEventArgs e)
+        {
+            if (ListBoxSyncDirs.SelectedIndex == -1)
+            {
+                return;
+            }
+
+            object selectedItem = ListBoxSyncDirs.SelectedItem;
+            string selectedItemString = selectedItem.ToString() ?? string.Empty;
+
+            Task.Run(async () =>
+            {
+                if (!synchronizedDirectories.Dictionary.TryGetValue(selectedItemString, out SynchronizedDirectory? synchronizedDirectory))
+                {
+                    return;
+                }
+
+                string fingerprint = await ScanHostKeyFingerprint(synchronizedDirectory.Host, synchronizedDirectory.Port);
+
+                SaveFingerprintIfTrusted(synchronizedDirectory.Host, synchronizedDirectory.Port, fingerprint);
+            });
+        }
+
+        private void SaveFingerprintIfTrusted(string host, ushort port, string fingerprint)
+        {
+            string dictionaryKey = $"{host}:{port}";
+
+            if (knownHosts.Dictionary.TryGetValue(dictionaryKey, out string? storedFingerprint))
+            {
+                if (fingerprint == storedFingerprint)
+                {
+                    AppendLineToConsoleOutputTextBox($"Fingerprint for {dictionaryKey} scanned and compared to locally stored entry. They match; everything OK!\n\nFingerprint: {fingerprint}");
+                    return;
+                }
+
+                ExecuteOnUIThread(() =>
+                {
+                    if (MessageBox.Show(
+                            $"The host \"{host}:{port}\" reported the following public key fingerprint:\n\n{fingerprint}\n\nDuring setup of the associated synchronized directory entry, you accepted the following as the trusted host key fingerprint:\n\n{storedFingerprint}\n\nThese two are different! This could either be due to the host having changed keys, or a man-in-the-middle attack (hopefully not!).\n\nHow should this be handled?\n\nClicking on \"Yes\" will accept the new host key fingerprint and overwrite the currently stored one; \"No\" will reject the key returned by the server and keep everything as it was (connection won't happen in this case).",
+                            $"Fingerprint mismatch for \"{host}:{port}\"", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
+                    {
+                        AppendLineToConsoleOutputTextBox($"User rejected host \"{host}:{port}\"'s alleged public key fingerprint \"{fingerprint}\" - associated directory entries won't sync.");
+                        return;
+                    }
+
+                    Task.Run(() =>
+                    {
+                        knownHosts.Dictionary[$"{host}:{port}"] = fingerprint;
+                        knownHosts.Save();
+                    });
+                });
+            }
+            else
+            {
+                ExecuteOnUIThread(() =>
+                {
+                    if (MessageBox.Show($"The host \"{host}:{port}\" reported the following public key fingerprint:\n\n{fingerprint}\n\nIs this correct? Do you trust it?", "Host key fingerprint check", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
+                    {
+                        AppendLineToConsoleOutputTextBox($"User rejected host \"{host}:{port}\"'s alleged public key fingerprint \"{fingerprint}\" - associated directory entries won't sync.");
+                        return;
+                    }
+
+                    Task.Run(() =>
+                    {
+                        knownHosts.Dictionary[$"{host}:{port}"] = fingerprint;
+                        knownHosts.Save();
+                    });
+                });
+            }
+        }
+
+        private void ButtonTogglePause_OnClick(object sender, RoutedEventArgs e)
+        {
+            paused = !paused;
+
+            ButtonTogglePause.IsEnabled = false;
+            ButtonTogglePause.Content = paused ? "Resume" : "Pause";
+
+            AppendLineToConsoleOutputTextBox($"User {(paused ? "paused" : "resumed")} automatic synchronization process.");
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(4096);
+
+                ExecuteOnUIThread(() => ButtonTogglePause.IsEnabled = true);
+            });
         }
     }
 }

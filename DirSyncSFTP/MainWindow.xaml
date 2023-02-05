@@ -136,7 +136,23 @@
 
             <ListBox
                 Grid.Row="1"
-                x:Name="ListBoxSyncDirs" />
+                x:Name="ListBoxSyncDirs">
+
+                <ListBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem
+                            Header="Delete"
+                            Click="ButtonRemoveSelectedSyncDir_OnClick" />
+                        <MenuItem
+                            Header="Scan host key fingerprint"
+                            Click="SynchronizedDirectory_ContextMenu_OnClickScanFingerprint" />
+                        <MenuItem
+                            Header="Open directory in Explorer"
+                            Click="SynchronizedDirectory_ContextMenu_OnClickOpenDir" />
+                    </ContextMenu>
+                </ListBox.ContextMenu>
+
+            </ListBox>
 
             <StackPanel
                 Grid.Row="2"
@@ -148,6 +164,7 @@
                     Margin="0"
                     Padding="8 0 8 0"
                     Height="22"
+                    Width="64"
                     Click="ButtonAddNewSyncDir_OnClick">
                     Add new
                 </Button>
@@ -158,8 +175,19 @@
                     Padding="8 0 8 0"
                     Height="22"
                     IsEnabled="False"
+                    Width="64"
                     Click="ButtonRemoveSelectedSyncDir_OnClick">
                     Remove
+                </Button>
+
+                <Button
+                    Width="64"
+                    IsEnabled="True"
+                    x:Name="ButtonTogglePause"
+                    Click="ButtonTogglePause_OnClick"
+                    Margin="8 0 0 0"
+                    Padding="8 0 8 0">
+                    Pause
                 </Button>
 
                 <Button

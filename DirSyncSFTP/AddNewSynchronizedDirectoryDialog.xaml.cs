@@ -132,7 +132,7 @@ public partial class AddNewSynchronizedDirectoryDialog : Window
         SynchronizedDirectory.Username = TextBoxUsername.Text;
         SynchronizedDirectory.Password = PasswordBoxPassword.Password;
 
-        SynchronizedDirectory.LocalDirectory = TextBoxLocalDirectory.Text;
+        SynchronizedDirectory.LocalDirectory = TextBoxLocalDirectory.Text.ToLowerInvariant();
         SynchronizedDirectory.RemoteDirectory = TextBoxRemoteDirectory.Text;
 
         SynchronizedDirectory.SshKeyFilePath = File.Exists(TextBoxSshKeyFile.Text)
