@@ -131,11 +131,14 @@ public partial class MainWindow
 
             if (synchronizedDirectories.Dictionary.ContainsKey(selectedItemString))
             {
-                synchronizedDirectories.Dictionary.Remove(selectedItemString);
-                synchronizedDirectories.Save();
+                if (MessageBox.Show($"Are you sure?\n\nThis will stop synchronizing {selectedItemString}.\n\nNothing will be deleted on your disk or the remote. The directories will just stop synchronizing periodically.", "Confirm removal of DirSync entry", MessageBoxButton.OKCancel) is MessageBoxResult.OK or MessageBoxResult.Yes)
+                {
+                    synchronizedDirectories.Dictionary.Remove(selectedItemString);
+                    synchronizedDirectories.Save();
 
-                ListBoxSyncDirs.Items.Remove(selectedItem);
-                ListBoxSyncDirs.UnselectAll();
+                    ListBoxSyncDirs.Items.Remove(selectedItem);
+                    ListBoxSyncDirs.UnselectAll();
+                }
             }
         }
         catch (Exception exception)

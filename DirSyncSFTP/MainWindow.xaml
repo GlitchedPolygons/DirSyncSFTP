@@ -181,7 +181,7 @@
                 <ListBox.ContextMenu>
                     <ContextMenu>
                         <MenuItem
-                            Header="Delete"
+                            Header="Remove"
                             Click="ButtonRemoveSelectedSyncDir_OnClick" />
                         <MenuItem
                             Header="Force sync only this"
