@@ -51,6 +51,7 @@
 
             <Button
                 Height="25"
+                TabIndex="-10"
                 x:Name="ButtonHelp"
                 Click="ButtonHelp_OnClick">
                 Help
@@ -77,6 +78,7 @@
 
                 <TextBox
                     x:Name="TextBoxHostName"
+                    GotFocus="TextBox_OnGotFocus"
                     Grid.Column="0" />
 
                 <Button
@@ -84,6 +86,7 @@
                     Margin="-4 0 0 0"
                     Width="64"
                     Grid.Column="1"
+                    TabIndex="-10"
                     x:Name="ButtonClearHostNameField"
                     Click="ButtonClearHostNameField_OnClick">
                     Clear
@@ -113,6 +116,7 @@
                 <TextBox
                     x:Name="TextBoxPortNumber"
                     PreviewTextInput="NumberValidationTextBox"
+                    GotFocus="TextBox_OnGotFocus"
                     Text="22"
                     Grid.Column="0" />
 
@@ -121,6 +125,7 @@
                     Margin="-4 0 0 0"
                     Width="64"
                     Grid.Column="1"
+                    TabIndex="-10"
                     x:Name="ButtonClearPortNumberField"
                     Click="ButtonClearPortNumberField_OnClick">
                     Reset
@@ -148,6 +153,7 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBox
+                    GotFocus="TextBox_OnGotFocus"
                     x:Name="TextBoxUsername"
                     Grid.Column="0" />
 
@@ -156,6 +162,7 @@
                     Margin="-4 0 0 0"
                     Width="64"
                     Grid.Column="1"
+                    TabIndex="-10"
                     x:Name="ButtonClearUsernameField"
                     Click="ButtonClearUsernameField_OnClick">
                     Clear
@@ -184,6 +191,7 @@
 
                 <PasswordBox
                     x:Name="PasswordBoxPassword"
+                    GotFocus="TextBox_OnGotFocus"
                     Grid.Column="0" />
 
                 <Button
@@ -191,6 +199,7 @@
                     Margin="-4 0 0 0"
                     Width="64"
                     Grid.Column="1"
+                    TabIndex="-10"
                     x:Name="ButtonClearPasswordField"
                     Click="ButtonClearPasswordField_OnClick">
                     Clear
@@ -219,14 +228,15 @@
 
                 <TextBox
                     x:Name="TextBoxLocalDirectory"
-                    Grid.Column="0"
-                    IsReadOnly="True" />
+                    GotFocus="TextBox_OnGotFocus"
+                    Grid.Column="0" />
 
                 <Button
                     Padding="8 0 8 0"
                     Margin="-4 0 0 0"
                     Width="64"
                     Grid.Column="1"
+                    TabIndex="-10"
                     x:Name="ButtonSelectLocalDirectory"
                     Click="ButtonSelectLocalDirectory_OnClick">
                     Browse
@@ -255,6 +265,7 @@
 
                 <TextBox
                     x:Name="TextBoxRemoteDirectory"
+                    GotFocus="TextBox_OnGotFocus"
                     Grid.Column="0" />
 
                 <Button
@@ -262,6 +273,7 @@
                     Margin="-4 0 0 0"
                     Width="64"
                     Grid.Column="1"
+                    TabIndex="-10"
                     x:Name="ButtonClearRemoteDirectoryField"
                     Click="ButtonClearRemoteDirectoryField_OnClick">
                     Clear
@@ -290,14 +302,15 @@
 
                 <TextBox
                     x:Name="TextBoxSshKeyFile"
-                    Grid.Column="0"
-                    IsReadOnly="True" />
+                    GotFocus="TextBox_OnGotFocus"
+                    Grid.Column="0" />
 
                 <Button
                     Padding="8 0 8 0"
                     Margin="-4 0 0 0"
                     Width="64"
                     Grid.Column="1"
+                    TabIndex="-10"
                     x:Name="ButtonSelectSshKeyFile"
                     Click="ButtonSelectSshKeyFile_OnClick">
                     Browse
@@ -326,6 +339,7 @@
 
                 <PasswordBox
                     x:Name="PasswordBoxSshKeyPassphrase"
+                    GotFocus="TextBox_OnGotFocus"
                     Grid.Column="0" />
 
                 <Button
@@ -333,6 +347,7 @@
                     Margin="-4 0 0 0"
                     Width="64"
                     Grid.Column="1"
+                    TabIndex="-10"
                     x:Name="ButtonClearSshKeyPassphraseField"
                     Click="ButtonClearSshKeyPassphraseField_OnClick">
                     Clear

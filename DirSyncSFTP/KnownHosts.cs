@@ -27,6 +27,7 @@ public class KnownHosts
 {
     private readonly string knownHostsFile;
     private readonly IDictionary<string, string> knownHosts = new ConcurrentDictionary<string, string>();
+    private static readonly JsonSerializerOptions JSON_SERIALIZER_OPTIONS = new() { WriteIndented = true };
 
     public KnownHosts(string knownHostsFile)
     {
@@ -62,6 +63,6 @@ public class KnownHosts
 
     public void Save()
     {
-        File.WriteAllText(knownHostsFile, JsonSerializer.Serialize(knownHosts));
+        File.WriteAllText(knownHostsFile, JsonSerializer.Serialize(knownHosts, JSON_SERIALIZER_OPTIONS));
     }
 }

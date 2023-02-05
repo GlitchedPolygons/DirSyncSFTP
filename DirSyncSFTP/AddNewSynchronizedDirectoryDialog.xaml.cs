@@ -20,6 +20,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Text.RegularExpressions;
+using System.Windows.Controls;
 using GlitchedPolygons.ExtensionMethods;
 using Microsoft.Win32;
 
@@ -32,6 +33,8 @@ public partial class AddNewSynchronizedDirectoryDialog : Window
     public AddNewSynchronizedDirectoryDialog()
     {
         InitializeComponent();
+
+        TextBoxHostName.Focus();
     }
 
     private void NumberValidationTextBox(object sender, TextCompositionEventArgs e)
@@ -39,11 +42,17 @@ public partial class AddNewSynchronizedDirectoryDialog : Window
         Regex regex = new Regex("[^0-9]+");
         e.Handled = regex.IsMatch(e.Text);
     }
+    
+    private void TextBox_OnGotFocus(object sender, RoutedEventArgs e)
+    {
+        (sender as TextBox)?.SelectAll();
+        (sender as PasswordBox)?.SelectAll();
+    }
 
     private void ButtonSelectLocalDirectory_OnClick(object sender, RoutedEventArgs e)
     {
         using var dialog = new System.Windows.Forms.FolderBrowserDialog();
-        
+
         dialog.ShowNewFolderButton = true;
         dialog.Description = "Select the local directory on your system that you want to be in sync with the remote.";
 
@@ -60,7 +69,7 @@ public partial class AddNewSynchronizedDirectoryDialog : Window
         }
         else
         {
-            TextBoxLocalDirectory.Text = dialog.SelectedPath;   
+            TextBoxLocalDirectory.Text = dialog.SelectedPath;
         }
     }
 
@@ -119,19 +128,19 @@ public partial class AddNewSynchronizedDirectoryDialog : Window
     {
         SynchronizedDirectory.Host = TextBoxHostName.Text;
         SynchronizedDirectory.Port = ushort.TryParse(TextBoxPortNumber.Text, out ushort port) ? port : (ushort)22;
-        
+
         SynchronizedDirectory.Username = TextBoxUsername.Text;
         SynchronizedDirectory.Password = PasswordBoxPassword.Password;
-        
+
         SynchronizedDirectory.LocalDirectory = TextBoxLocalDirectory.Text;
         SynchronizedDirectory.RemoteDirectory = TextBoxRemoteDirectory.Text;
-        
-        SynchronizedDirectory.SshKeyFilePath = File.Exists(TextBoxSshKeyFile.Text) 
-            ? TextBoxSshKeyFile.Text 
+
+        SynchronizedDirectory.SshKeyFilePath = File.Exists(TextBoxSshKeyFile.Text)
+            ? TextBoxSshKeyFile.Text
             : string.Empty;
-        
-        SynchronizedDirectory.SshKeyPassphrase = SynchronizedDirectory.SshKeyFilePath.NullOrEmpty() 
-            ? string.Empty 
+
+        SynchronizedDirectory.SshKeyPassphrase = SynchronizedDirectory.SshKeyFilePath.NullOrEmpty()
+            ? string.Empty
             : PasswordBoxSshKeyPassphrase.Password;
 
         DialogResult = true;

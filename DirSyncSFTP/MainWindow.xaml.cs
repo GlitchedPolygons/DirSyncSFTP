@@ -17,30 +17,20 @@
 */
 
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
+using System.Collections.Generic;
+using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Forms;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using GlitchedPolygons.ExtensionMethods;
 using Application = System.Windows.Application;
@@ -55,6 +45,7 @@ namespace DirSyncSFTP
     public partial class MainWindow : Window
     {
         private JsonPrefs jsonPrefs;
+        private volatile bool adding = false;
         private volatile bool quitting = false;
         private volatile bool synchronizing = false;
 
@@ -176,6 +167,14 @@ namespace DirSyncSFTP
             synchronizedDirectories = new SynchronizedDirectories(jsonPrefs);
             synchronizedDirectories.Load();
 
+            if (synchronizedDirectories.Dictionary.NotNullNotEmpty())
+            {
+                foreach (string key in synchronizedDirectories.Dictionary.Keys)
+                {
+                    ListBoxSyncDirs.Items.Add(key);
+                }
+            }
+
             SliderSyncInterval.Value = Math.Clamp(jsonPrefs.GetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES, 15), 1, 60);
 
             notifyIcon = new NotifyIcon
@@ -272,7 +271,7 @@ namespace DirSyncSFTP
 
             if (stderr.NotNullNotEmpty())
             {
-                TextBoxConsoleLog.Text += stderr; // todo: fix
+                AppendLineToConsoleOutputTextBox($"ERROR: Failed to fetch host key fingerprint for \"{hostName}:{portNumber}\". {stderr}");
             }
 
             return stdout.NotNullNotEmpty()
@@ -320,7 +319,7 @@ namespace DirSyncSFTP
 
         private async Task PerformSync()
         {
-            if (synchronizing)
+            if (synchronizing || adding)
             {
                 return;
             }
@@ -340,7 +339,7 @@ namespace DirSyncSFTP
                 {
                     try
                     {
-                        AppendLineToConsoleOutputTextBox($"Synchronizing {key}");
+                        AppendLineToConsoleOutputTextBox($"Synchronizing {key}... Please be patient: depending on how big the directory trees are this might take a while!");
 
                         if (!Directory.Exists(synchronizedDirectory.LocalDirectory))
                         {
@@ -348,17 +347,69 @@ namespace DirSyncSFTP
                             continue;
                         }
 
-                        if (!knownHosts.Dictionary.TryGetValue($"{synchronizedDirectory.Host}:{synchronizedDirectory.Port}", out string? fingerprint))
+                        string host = $"{synchronizedDirectory.Host}:{synchronizedDirectory.Port}";
+
+                        if (!knownHosts.Dictionary.TryGetValue(host, out string? storedFingerprint))
                         {
-                            AppendLineToConsoleOutputTextBox($"ERROR: Key fingerprint for host \"{synchronizedDirectory.Host}:{synchronizedDirectory.Port}\" not found in local cache!");
+                            AppendLineToConsoleOutputTextBox($"ERROR: Key fingerprint for host \"{host}\" not found in local cache!");
                             continue;
                         }
 
-                        AppendLineToConsoleOutputTextBox("Synchronizing... Please be patient: depending on how big the directory trees are this might take a while!");
+                        string fingerprint = await ScanHostKeyFingerprint(synchronizedDirectory.Host);
 
-                        string args =
-                            $"-NoProfile -ExecutionPolicy ByPass & '{powershellSyncScriptFile}' -assemblyPath '{jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH)}' -hostName '{synchronizedDirectory.Host}' -portNumber '{synchronizedDirectory.Port}' -username '{synchronizedDirectory.Username}' -password '{synchronizedDirectory.Password}' -fingerprint '{fingerprint}' -localPath '{synchronizedDirectory.LocalDirectory}' -remotePath '{synchronizedDirectory.RemoteDirectory}' -listPath '{Path.Combine(filesListDir, synchronizedDirectory.GetDictionaryKey().SHA256())}' -sshKey '{synchronizedDirectory.SshKeyFilePath}' -sshKeyPassphrase '{synchronizedDirectory.SshKeyPassphrase}' ";
+                        if (storedFingerprint != fingerprint)
+                        {
+                            AppendLineToConsoleOutputTextBox($"ERROR: The host's key fingerprint for \"{host}\" (DirSync: \"{synchronizedDirectory.GetDictionaryKey()}\" - fingerprint: \"{fingerprint}\") does not match the locally stored one to which you agreed during setup of the synchronized directory: \"{storedFingerprint}\". The host either changed its key or, well... Let's hope it's not a MITM attack!");
+                            continue;
+                        }
 
+                        var argsStringBuilder = new StringBuilder(1024);
+
+                        argsStringBuilder.Append("-NoProfile -ExecutionPolicy ByPass & '");
+                        argsStringBuilder.Append(powershellSyncScriptFile);
+                        
+                        argsStringBuilder.Append("' -assemblyPath '");
+                        argsStringBuilder.Append(jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH));
+                        
+                        argsStringBuilder.Append("' -hostName '");
+                        argsStringBuilder.Append(synchronizedDirectory.Host);
+                        
+                        argsStringBuilder.Append("' -portNumber '");
+                        argsStringBuilder.Append(synchronizedDirectory.Port);
+                        
+                        argsStringBuilder.Append("' -username '");
+                        argsStringBuilder.Append(synchronizedDirectory.Username.UTF8GetBytes().ToBase64String());
+                        
+                        argsStringBuilder.Append("' -fingerprint '");
+                        argsStringBuilder.Append(storedFingerprint.UTF8GetBytes().ToBase64String());
+                        
+                        argsStringBuilder.Append("' -localPath '");
+                        argsStringBuilder.Append(synchronizedDirectory.LocalDirectory.UTF8GetBytes().ToBase64String());
+                        
+                        argsStringBuilder.Append("' -remotePath '");
+                        argsStringBuilder.Append(synchronizedDirectory.RemoteDirectory.UTF8GetBytes().ToBase64String());
+                        
+                        argsStringBuilder.Append("' -listPath '");
+                        argsStringBuilder.Append(Path.Combine(filesListDir, synchronizedDirectory.GetDictionaryKey().SHA256()).UTF8GetBytes().ToBase64String());
+
+                        if (synchronizedDirectory.Password.NotNullNotEmpty())
+                        {
+                            argsStringBuilder.Append("' -password '");
+                            argsStringBuilder.Append(synchronizedDirectory.Password.UTF8GetBytes().ToBase64String());
+                        }
+
+                        if (synchronizedDirectory.SshKeyFilePath.NotNullNotEmpty())
+                        {
+                            argsStringBuilder.Append("' -sshKey '");
+                            argsStringBuilder.Append(synchronizedDirectory.SshKeyFilePath.UTF8GetBytes().ToBase64String());
+
+                            argsStringBuilder.Append("' -sshKeyPassphrase '");
+                            argsStringBuilder.Append(synchronizedDirectory.SshKeyPassphrase.UTF8GetBytes().ToBase64String());
+                        }
+
+                        argsStringBuilder.Append("' ");
+
+                        string args = argsStringBuilder.ToString();
                         string argsHash = args.SHA256();
 
                         if (!processStartInfoCache.TryGetValue(argsHash, out var processStartInfo))
@@ -433,6 +484,138 @@ namespace DirSyncSFTP
             jsonPrefs?.SetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES, minutes);
         }
 
+        private async void ButtonAddNewSyncDir_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (adding)
+            {
+                return;
+            }
+
+            adding = true;
+
+            try
+            {
+                var dialog = new AddNewSynchronizedDirectoryDialog();
+
+                if (dialog.ShowDialog() is true)
+                {
+                    SynchronizedDirectory setup = dialog.SynchronizedDirectory;
+
+                    string newDictionaryKey = setup.GetDictionaryKey();
+
+                    if (setup.Host.NullOrEmpty())
+                    {
+                        MessageBox.Show("ERROR: Host field empty. Please provide a synchronization remote host name (without schema, protocol or prefix - just the domain name)", "Invalid DirSync config");
+                        return;
+                    }
+
+                    if (setup.Username.NullOrEmpty())
+                    {
+                        MessageBox.Show("ERROR: Username field empty. Please provide valid credentials!", "Invalid DirSync config");
+                        return;
+                    }
+
+                    if (setup.LocalDirectory.NullOrEmpty())
+                    {
+                        MessageBox.Show("ERROR: Local directory field empty or points to invalid/nonexistent directory. Please choose a valid directory on your system to sync your files in!", "Invalid DirSync config");
+                        return;
+                    }
+
+                    if (synchronizedDirectories.Dictionary.ContainsKey(newDictionaryKey))
+                    {
+                        MessageBox.Show($"ERROR: You are already synchronizing the entry \"{newDictionaryKey}\".");
+                        return;
+                    }
+
+                    if (synchronizedDirectories.Dictionary.Keys.Any(key => key[..key.LastIndexOf(':')].StartsWith(setup.LocalDirectory)))
+                    {
+                        MessageBox.Show($"ERROR: You specified the local directory \"{setup.LocalDirectory}\", which is a subfolder of a directory that is already being synchronized by another entry.");
+                        return;
+                    }
+
+                    AppendLineToConsoleOutputTextBox($"Requesting host key fingerprint from \"{setup.Host}:{setup.Port}\"...");
+
+                    string fingerprint = await ScanHostKeyFingerprint(setup.Host, setup.Port);
+
+                    if (fingerprint.NullOrEmpty())
+                    {
+                        string errorMessage = $"ERROR: Couldn't retrieve host key fingerprint from \"{setup.Host}:{setup.Port}\" - it's safer (and actually required) to know the host's key fingerprint beforehand. Won't add the synchronized directory entry, for safety's sake!";
+                        AppendLineToConsoleOutputTextBox(errorMessage);
+                        MessageBox.Show(errorMessage);
+                        return;
+                    }
+
+                    if (MessageBox.Show($"The host \"{setup.Host}:{setup.Port}\" reported the following public key fingerprint:\n\n{fingerprint}\n\nIs this correct? Do you trust it?", "Host key fingerprint check", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
+                    {
+                        AppendLineToConsoleOutputTextBox($"User rejected host \"{setup.Host}:{setup.Port}\"'s alleged public key fingerprint \"{fingerprint}\" - synchronized directory entry was not added.");
+                        return;
+                    }
+
+                    knownHosts.Dictionary[$"{setup.Host}:{setup.Port}"] = fingerprint;
+                    knownHosts.Save();
+
+                    synchronizedDirectories.Dictionary[newDictionaryKey] = setup;
+                    synchronizedDirectories.Save();
+
+                    ListBoxSyncDirs.Items.Add(newDictionaryKey);
+
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(1024);
+                        await PerformSync();
+                    });
+                }
+                else
+                {
+                    AppendLineToConsoleOutputTextBox("Synchronized directory setup dialog cancelled.");
+                }
+            }
+            catch (Exception exception)
+            {
+                AppendLineToConsoleOutputTextBox($"ERROR: Failed to add new synchronized directory entry. Thrown exception: {exception.ToString()}");
+            }
+            finally
+            {
+                adding = false;
+            }
+        }
+
+        private void ButtonRemoveSelectedSyncDir_OnClick(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                object selectedItem = ListBoxSyncDirs.SelectedItem;
+                string selectedItemString = selectedItem.ToString() ?? string.Empty;
+
+                if (synchronizedDirectories.Dictionary.ContainsKey(selectedItemString))
+                {
+                    synchronizedDirectories.Dictionary.Remove(selectedItemString);
+                    synchronizedDirectories.Save();
+                    
+                    ListBoxSyncDirs.Items.Remove(selectedItem);
+                    ListBoxSyncDirs.UnselectAll();
+                }
+            }
+            catch (Exception exception)
+            {
+                AppendLineToConsoleOutputTextBox($"ERROR: Failed to remove synchronized directory entry. Thrown exception: {exception.ToString()}");
+            }
+        }
+
+        private void ButtonForceSyncNow_OnClick(object sender, RoutedEventArgs e)
+        {
+            ButtonForceSyncNow.IsEnabled = false;
+
+            AppendLineToConsoleOutputTextBox("Force-sync initiated by user.");
+
+            Task.Run(PerformSync).ContinueWith(async _ =>
+            {
+                await Task.Delay(4096);
+
+                ExecuteOnUIThread(() => ButtonForceSyncNow.IsEnabled = true);
+            });
+        }
+
         private void ButtonVisitGP_OnClick(object sender, RoutedEventArgs e)
         {
             OpenUrl("https://glitchedpolygons.com");
@@ -471,58 +654,6 @@ namespace DirSyncSFTP
                     throw;
                 }
             }
-        }
-
-        private void ButtonAddNewSyncDir_OnClick(object sender, RoutedEventArgs e)
-        {
-            var dialog = new AddNewSynchronizedDirectoryDialog();
-
-            if (dialog.ShowDialog() is true)
-            {
-                SynchronizedDirectory setup = dialog.SynchronizedDirectory;
-
-                //if (setup.)
-
-                // todo: check if dir is already tracked and show err dialog popup if so
-            }
-            else
-            {
-                AppendLineToConsoleOutputTextBox("Synchronized directory setup dialog cancelled.");
-            }
-        }
-
-        private void ButtonRemoveSelectedSyncDir_OnClick(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                object selectedItem = ListBoxSyncDirs.SelectedItem;
-                string selectedItemString = selectedItem.ToString() ?? string.Empty;
-
-                if (synchronizedDirectories.Dictionary.Keys.Contains(selectedItemString))
-                {
-                    synchronizedDirectories.Dictionary.Remove(selectedItemString);
-                    ListBoxSyncDirs.Items.Remove(selectedItem);
-                    ListBoxSyncDirs.UnselectAll();
-                }
-            }
-            catch (Exception exception)
-            {
-                AppendLineToConsoleOutputTextBox($"ERROR: Failed to remove synchronized directory entry. Thrown exception: {exception.ToString()}");
-            }
-        }
-
-        private void ButtonForceSyncNow_OnClick(object sender, RoutedEventArgs e)
-        {
-            ButtonForceSyncNow.IsEnabled = false;
-
-            AppendLineToConsoleOutputTextBox("Force-sync initiated by user.");
-
-            Task.Run(PerformSync).ContinueWith(async _ =>
-            {
-                await Task.Delay(4096);
-
-                ExecuteOnUIThread(() => ButtonForceSyncNow.IsEnabled = true);
-            });
         }
     }
 }

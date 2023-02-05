@@ -32,9 +32,9 @@ public class SynchronizedDirectories
     {
         this.jsonPrefs = jsonPrefs;
     }
-    
+
     public IDictionary<string, SynchronizedDirectory> Dictionary => synchronizedDirectories;
-    
+
     public void Load()
     {
         string encryptedJson = jsonPrefs.GetString(Constants.PrefKeys.SYNC_DIRECTORIES, string.Empty);
@@ -43,30 +43,30 @@ public class SynchronizedDirectories
         {
             return;
         }
-            
+
         string json = encryptedJson.Unprotect();
 
-        IList<SynchronizedDirectory>? deserializedEntries = JsonSerializer.Deserialize<IList<SynchronizedDirectory>>(json);
+        IDictionary<string, SynchronizedDirectory>? deserializedEntries = JsonSerializer.Deserialize<IDictionary<string, SynchronizedDirectory>>(json);
 
         if (deserializedEntries is null)
         {
             return;
         }
-            
+
         synchronizedDirectories.Clear();
 
-        foreach (var synchronizedDirectory in deserializedEntries)
+        foreach ((string key, SynchronizedDirectory value) in deserializedEntries)
         {
-            synchronizedDirectories[synchronizedDirectory.GetDictionaryKey()] = synchronizedDirectory;
+            synchronizedDirectories[key] = value;
         }
     }
 
     public void Save()
     {
         string json = JsonSerializer.Serialize(synchronizedDirectories);
-            
+
         jsonPrefs.SetString(Constants.PrefKeys.SYNC_DIRECTORIES, json.Protect());
-            
+
         jsonPrefs.Save();
     }
 }

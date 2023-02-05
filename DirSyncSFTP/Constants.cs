@@ -109,7 +109,7 @@ param (
     [Parameter(Mandatory = $True)]
     [string] $username,
 
-    [Parameter(Mandatory = $True)]
+    [Parameter(Mandatory = $False)]
     [string] $password,
 
     [Parameter(Mandatory = $False)]
@@ -126,15 +126,37 @@ try
 {
     Add-Type -Path $assemblyPath
  
+    $localPath = [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($localPath))
+    $remotePath = [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($remotePath))
+    $listPath = [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($listPath))
+    $fingerprint = [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($fingerprint))
+    $username = [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($username))
+    $password = [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($password))
+    $sshKey = [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($sshKey))
+    $sshKeyPassphrase = [Text.Encoding]::Utf8.GetString([Convert]::FromBase64String($sshKeyPassphrase))
+
     $sessionOptions = New-Object WinSCP.SessionOptions
     $sessionOptions.Protocol = [WinSCP.Protocol]::Sftp
     $sessionOptions.HostName = $hostName
     $sessionOptions.PortNumber = $portNumber
     $sessionOptions.UserName = $username
-    $sessionOptions.Password = $password
-    $sessionOptions.SshPrivateKeyPath = $sshKey
+
+    if ($password)
+    {
+        $sessionOptions.Password = $password 
+    }
+
+    if ($sshKey)
+    {
+        $sessionOptions.SshPrivateKeyPath = $sshKey 
+    }
+
+    if ($sshKey)
+    {
+        $sessionOptions.PrivateKeyPassphrase = $sshKeyPassphrase 
+    }
+    
     $sessionOptions.SshHostKeyFingerprint = $fingerprint
-    $sessionOptions.PrivateKeyPassphrase = $sshKeyPassphrase
  
     $listPath = [Environment]::ExpandEnvironmentVariables($listPath)
     $listDir = (Split-Path -Parent $listPath) 
