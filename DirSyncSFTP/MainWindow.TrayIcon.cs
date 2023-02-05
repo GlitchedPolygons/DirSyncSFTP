@@ -23,12 +23,6 @@ namespace DirSyncSFTP;
 
 public partial class MainWindow
 {
-    private void TrayIcon_OnClick(object? sender, EventArgs args)
-    {
-        notifyIcon.ContextMenuStrip.Show(System.Windows.Forms.Cursor.Position);
-        notifyIcon.ContextMenuStrip.Focus();
-    }
-
     private void TrayContextMenu_OnClickedQuit(object? sender, EventArgs e)
     {
         Quit();
