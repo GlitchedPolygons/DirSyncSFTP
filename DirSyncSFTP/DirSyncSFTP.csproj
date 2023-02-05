@@ -8,8 +8,8 @@
 	<UseWindowsForms>true</UseWindowsForms>
 	<ApplicationIcon>sftp.ico</ApplicationIcon>
 	<Company>Glitched Polygons</Company>
-	<AssemblyVersion>1.0.0</AssemblyVersion>
-	<FileVersion>1.0.0</FileVersion>
+	<AssemblyVersion>1.0.1</AssemblyVersion>
+	<FileVersion>1.0.1</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
