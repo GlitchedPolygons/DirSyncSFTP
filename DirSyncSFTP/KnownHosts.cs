@@ -27,7 +27,11 @@ public class KnownHosts
 {
     private readonly string knownHostsFile;
     private readonly IDictionary<string, string> knownHosts = new ConcurrentDictionary<string, string>();
-    private static readonly JsonSerializerOptions JSON_SERIALIZER_OPTIONS = new() { WriteIndented = true };
+
+    private static readonly JsonSerializerOptions JSON_SERIALIZER_OPTIONS = new()
+    {
+        WriteIndented = true
+    };
 
     public KnownHosts(string knownHostsFile)
     {
