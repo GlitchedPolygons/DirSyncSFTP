@@ -20,14 +20,14 @@ namespace DirSyncSFTP;
 
 public class SynchronizedDirectory
 {
-    public string LocalDirectory { get; set; }
-    public string RemoteDirectory { get; set; }
-    public string SshKeyFilePath { get; set; }
-    public string SshKeyPassphrase { get; set; }
-    public string Username { get; set; }
-    public string Password { get; set; }
-    public string Host { get; set; }
-    public ushort Port { get; set; }
+    public string LocalDirectory { get; set; } = string.Empty;
+    public string RemoteDirectory { get; set; } = string.Empty;
+    public string SshKeyFilePath { get; set; } = string.Empty;
+    public string SshKeyPassphrase { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public string Host { get; set; } = string.Empty;
+    public ushort Port { get; set; } = 22;
 
     public string GetDictionaryKey()
     {
