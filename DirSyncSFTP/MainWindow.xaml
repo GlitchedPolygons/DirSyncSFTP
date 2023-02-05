@@ -39,6 +39,9 @@
                 Height="auto" />
 
             <RowDefinition
+                Height="auto" />
+
+            <RowDefinition
                 Height="3*" />
 
             <RowDefinition
@@ -69,19 +72,56 @@
                 Content="Synchronization interval: every 15min" />
 
             <Slider
-                x:Name="SliderSyncInterval"
+                x:Name="SliderSyncIntervalMinutes"
                 Interval="1"
                 Minimum="1"
                 Maximum="60"
                 Value="15"
                 Margin="-4 0 -4 0"
-                ValueChanged="RangeBase_OnValueChanged">
+                ValueChanged="SliderSyncIntervalMinutes_OnValueChanged">
             </Slider>
 
         </StackPanel>
 
+        <StackPanel
+            Grid.Row="1"
+            Orientation="Horizontal"
+            Margin="0 16 0 0"
+            Height="25">
+
+            <CheckBox
+                x:Name="CheckBoxMinimizeOnClose"
+                Checked="CheckBoxMinimizeOnClose_OnChecked"
+                Unchecked="CheckBoxMinimizeOnClose_OnChecked"
+                ToolTip="When this is checked, closing this window will not terminate DirSyncSFTP but minimize it to the taskbar tray instead."
+                IsChecked="True">
+                Minimize to tray on close
+            </CheckBox>
+
+            <CheckBox
+                x:Name="CheckBoxAutostart"
+                Checked="CheckBoxAutostart_OnChecked"
+                Unchecked="CheckBoxAutostart_OnChecked"
+                Margin="8 0 0  0"
+                ToolTip="Should DirSyncSFTP be launched after booting?"
+                IsChecked="True">
+                Autostart
+            </CheckBox>
+
+            <CheckBox
+                x:Name="CheckBoxStartMinimized"
+                Margin="8 0 0  0"
+                Checked="CheckBoxStartMinimized_OnChecked"
+                Unchecked="CheckBoxStartMinimized_OnChecked"
+                ToolTip="Should DirSyncSFTP directly be minimized after starting?"
+                IsChecked="False">
+                Start minimized
+            </CheckBox>
+
+        </StackPanel>
+
         <Grid
-            Grid.Row="1">
+            Grid.Row="2">
 
             <Grid.RowDefinitions>
                 <RowDefinition
@@ -113,7 +153,7 @@
         </Grid>
 
         <Grid
-            Grid.Row="2">
+            Grid.Row="3">
 
             <Grid.RowDefinitions>
                 <RowDefinition
@@ -205,11 +245,11 @@
         </Grid>
 
         <StackPanel
-            Grid.Row="3">
+            Grid.Row="4">
         </StackPanel>
 
         <StackPanel
-            Grid.Row="4"
+            Grid.Row="5"
             Orientation="Horizontal"
             VerticalAlignment="Center"
             Margin="0 32 0 0">

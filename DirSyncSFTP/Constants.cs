@@ -23,6 +23,8 @@ public static class Constants
     public static class PrefKeys
     {
         public const string CLIENT_ID = "ClientId";
+        public const string AUTOSTART = "Autostart";
+        public const string START_MINIMIZED = "StartMinimized";
         public const string WINSCP_ASSEMBLY_PATH = "WinScpAssemblyPath";
         public const string LAST_SYNC_UTC = "LastSyncTimestampUTC";
         public const string SYNC_DIRECTORIES = "SynchronizedDirectories";
@@ -30,6 +32,7 @@ public static class Constants
         public const string VERSION_NUMBER_MAJOR = "VersionNumberMajor";
         public const string VERSION_NUMBER_MINOR = "VersionNumberMinor";
         public const string VERSION_NUMBER_PATCH = "VersionNumberPatch";
+        public const string MINIMIZE_TO_TRAY_ON_CLOSE = "MinimizeToTrayOnClose";
         public const string MAX_CONSOLE_OUTPUT_LINECOUNT = "MaxConsoleOutputLineCount";
     }
 

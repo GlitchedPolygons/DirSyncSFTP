@@ -18,24 +18,21 @@
 
 using System;
 using System.IO;
-using System.Linq;
+using System.Text.Json;
 using System.Reflection;
 using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Forms;
-using System.Windows.Controls;
 using System.Windows.Threading;
 using GlitchedPolygons.ExtensionMethods;
-using Application = System.Windows.Application;
-using MessageBox = System.Windows.MessageBox;
+
 using Path = System.IO.Path;
+using MessageBox = System.Windows.MessageBox;
+using Application = System.Windows.Application;
 
 namespace DirSyncSFTP
 {
@@ -60,23 +57,33 @@ namespace DirSyncSFTP
         private readonly SynchronizedDirectories synchronizedDirectories;
         private readonly IDictionary<string, ProcessStartInfo> processStartInfoCache = new ConcurrentDictionary<string, ProcessStartInfo>();
 
+        private static Mutex mutex;
+
         public MainWindow()
         {
             InitializeComponent();
 
-            var mutex = new Mutex(true, nameof(DirSyncSFTP), out bool newInstance);
+            mutex = new Mutex(true, nameof(DirSyncSFTP), out bool newInstance);
 
             if (!newInstance)
             {
-                MessageBox.Show("There is already an instance of DirSyncSFTP.exe running... or crawling ;D"); // TODO: use dialog here that blocks everything!
+                MessageBox.Show("There is already an instance of DirSyncSFTP.exe running... or crawling ;D");
                 Application.Current.Shutdown();
             }
 
-            Closing += (_, _) =>
+            Closing += (_, e) =>
             {
-                AppendLineToConsoleOutputTextBox("Quitting...");
-                jsonPrefs?.Save();
-                quitting = true;
+                if (CheckBoxMinimizeOnClose.IsChecked == true)
+                {
+                    e.Cancel = true;
+                    Hide();
+                }
+                else
+                {
+                    AppendLineToConsoleOutputTextBox("Quitting...");
+                    jsonPrefs?.Save();
+                    quitting = true;
+                }
             };
 
             Application.Current.Exit += (_, _) => { quitting = true; };
@@ -161,6 +168,21 @@ namespace DirSyncSFTP
                 }
             }
 
+            if (!jsonPrefs.HasKey(Constants.PrefKeys.MINIMIZE_TO_TRAY_ON_CLOSE))
+            {
+                jsonPrefs.SetBool(Constants.PrefKeys.MINIMIZE_TO_TRAY_ON_CLOSE, CheckBoxMinimizeOnClose.IsChecked == true);
+            }
+
+            if (!jsonPrefs.HasKey(Constants.PrefKeys.AUTOSTART))
+            {
+                jsonPrefs.SetBool(Constants.PrefKeys.AUTOSTART, CheckBoxAutostart.IsChecked == true);
+            }
+
+            if (!jsonPrefs.HasKey(Constants.PrefKeys.START_MINIMIZED))
+            {
+                jsonPrefs.SetBool(Constants.PrefKeys.START_MINIMIZED, CheckBoxStartMinimized.IsChecked == true);
+            }
+
             jsonPrefs.Save();
 
             TextBoxConsoleLog.Text = "Copyright (C) 2023 Raphael Beck\nThis is free, GPLv3-licensed software. Enjoy :D\n\n";
@@ -176,7 +198,11 @@ namespace DirSyncSFTP
                 }
             }
 
-            SliderSyncInterval.Value = Math.Clamp(jsonPrefs.GetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES, 15), 1, 60);
+            CheckBoxMinimizeOnClose.IsChecked = jsonPrefs.GetBool(Constants.PrefKeys.MINIMIZE_TO_TRAY_ON_CLOSE, true);
+            CheckBoxAutostart.IsChecked = jsonPrefs.GetBool(Constants.PrefKeys.AUTOSTART, true);
+            CheckBoxStartMinimized.IsChecked = jsonPrefs.GetBool(Constants.PrefKeys.START_MINIMIZED, true);
+
+            SliderSyncIntervalMinutes.Value = Math.Clamp(jsonPrefs.GetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES, 15), 1, 60);
 
             notifyIcon = new NotifyIcon
             {
@@ -188,7 +214,17 @@ namespace DirSyncSFTP
 
             ListBoxSyncDirs.SelectionChanged += ListBoxSyncDirsOnSelectionChanged;
 
+            if (CheckBoxStartMinimized.IsChecked == true)
+            {
+                Hide();
+            }
+
             Task.Run(Sync);
+        }
+        
+        private void ExecuteOnUIThread(Action action)
+        {
+            Application.Current?.Dispatcher?.Invoke(action, DispatcherPriority.Normal);
         }
 
         private void OnNotifyIconClick(object? sender, EventArgs args)
@@ -197,12 +233,17 @@ namespace DirSyncSFTP
 
             WindowState = WindowState.Normal;
         }
-
-        private void ExecuteOnUIThread(Action action)
+        
+        protected override void OnStateChanged(EventArgs e)
         {
-            Application.Current?.Dispatcher?.Invoke(action, DispatcherPriority.Normal);
-        }
+            if (WindowState == WindowState.Minimized)
+            {
+                Hide();
+            }
 
+            base.OnStateChanged(e);
+        }
+        
         private void CreateScriptFileIfNotExistsOrWrong(string scriptFilePath, string script)
         {
             if (!File.Exists(scriptFilePath))
@@ -221,551 +262,6 @@ namespace DirSyncSFTP
                 }
                 powershellScriptFileInfo.IsReadOnly = true;
             }
-        }
-
-        protected override void OnStateChanged(EventArgs e)
-        {
-            if (WindowState == WindowState.Minimized)
-            {
-                Hide();
-            }
-
-            base.OnStateChanged(e);
-        }
-
-        private void ListBoxSyncDirsOnSelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            ButtonRemoveSelectedSyncDir.IsEnabled = ListBoxSyncDirs.SelectedItem is not null;
-        }
-
-        private async Task<string> ScanHostKeyFingerprint(string hostName, ushort portNumber = 22)
-        {
-            string args =
-                $"-NoProfile -ExecutionPolicy ByPass & '{powershellScanHostKeyFingerprintScriptFile}' -assemblyPath '{jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH)}' -hostName {hostName} -portNumber {portNumber} ";
-
-            string argsHash = args.SHA1();
-
-            if (!processStartInfoCache.TryGetValue(argsHash, out var processStartInfo))
-            {
-                processStartInfoCache[argsHash] = processStartInfo = new ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    Arguments = args,
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    RedirectStandardError = true,
-                    RedirectStandardOutput = true,
-                };
-            }
-
-            using var process = Process.Start(processStartInfo);
-
-            if (process is null)
-            {
-                return string.Empty;
-            }
-
-            await process.WaitForExitAsync();
-
-            string stderr = await process.StandardError.ReadToEndAsync();
-            string stdout = await process.StandardOutput.ReadToEndAsync();
-
-            if (stderr.NotNullNotEmpty())
-            {
-                AppendLineToConsoleOutputTextBox($"ERROR: Failed to fetch host key fingerprint for \"{hostName}:{portNumber}\". {stderr}");
-            }
-
-            return stdout.NotNullNotEmpty()
-                ? stdout.Trim()
-                : string.Empty;
-        }
-
-        private void AppendLineToConsoleOutputTextBox(string line)
-        {
-            ExecuteOnUIThread(() =>
-            {
-                if (TextBoxConsoleLog.Text.Split('\n').Length > jsonPrefs.GetInt(Constants.PrefKeys.MAX_CONSOLE_OUTPUT_LINECOUNT, 1024))
-                {
-                    TextBoxConsoleLog.Text = "(truncated old entries...)\n\n";
-                }
-
-                if (line.EndsWith('\n'))
-                {
-                    line = line.TrimEnd('\n');
-                }
-
-                if (line.NotNullNotEmpty())
-                {
-                    TextBoxConsoleLog.Text += $"[{DateTime.Now.ToString("dd. MMM. yyyy HH:mm:ss")}]\n{line}\n\n";
-                }
-
-                TextBoxConsoleLog.ScrollToEnd();
-            });
-        }
-
-        private async Task Sync()
-        {
-            await Task.Delay(1024);
-
-            while (!quitting)
-            {
-                if (paused)
-                {
-                    goto endOfLoop;
-                }
-
-                await PerformSync();
-
-                endOfLoop:
-#if DEBUG
-                await Task.Delay(TimeSpan.FromSeconds(15));
-#else
-                await Task.Delay(TimeSpan.FromMinutes(jsonPrefs.GetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES)));
-#endif
-            }
-        }
-
-        private async Task PerformSync()
-        {
-            if (synchronizing || adding)
-            {
-                return;
-            }
-
-            synchronizing = true;
-
-            jsonPrefs.SetLong(Constants.PrefKeys.LAST_SYNC_UTC, DateTime.UtcNow.ToUnixTimeSeconds());
-            await jsonPrefs.SaveAsync();
-
-            if (synchronizedDirectories.Dictionary.NullOrEmpty())
-            {
-                AppendLineToConsoleOutputTextBox($"List of synchronized directories is empty. Add a new entry to get started!");
-            }
-            else
-            {
-                foreach ((string key, var synchronizedDirectory) in synchronizedDirectories.Dictionary)
-                {
-                    try
-                    {
-                        AppendLineToConsoleOutputTextBox($"Synchronizing {key}... Please be patient: depending on how big the directory trees are this might take a while!");
-
-                        if (!Directory.Exists(synchronizedDirectory.LocalDirectory))
-                        {
-                            AppendLineToConsoleOutputTextBox($"ERROR: Local directory \"{synchronizedDirectory.LocalDirectory}\" not found!");
-                            continue;
-                        }
-
-                        string host = $"{synchronizedDirectory.Host}:{synchronizedDirectory.Port}";
-
-                        if (!knownHosts.Dictionary.TryGetValue(host, out string? storedFingerprint))
-                        {
-                            AppendLineToConsoleOutputTextBox($"ERROR: Key fingerprint for host \"{host}\" not found in local cache!");
-                            continue;
-                        }
-
-                        string fingerprint = await ScanHostKeyFingerprint(synchronizedDirectory.Host);
-
-                        if (storedFingerprint != fingerprint)
-                        {
-                            AppendLineToConsoleOutputTextBox($"ERROR: The host key fingerprint for \"{host}\" (DirSync: \"{synchronizedDirectory.GetDictionaryKey()}\" - fingerprint: \"{fingerprint}\") does not match the locally stored one to which you agreed during setup of the synchronized directory: \"{storedFingerprint}\". The host either changed its key or, well... Let's hope it's not a MITM attack!");
-                            continue;
-                        }
-
-                        var argsStringBuilder = new StringBuilder(1024);
-
-                        argsStringBuilder.Append("-NoProfile -ExecutionPolicy ByPass & '");
-                        argsStringBuilder.Append(powershellSyncScriptFile);
-
-                        argsStringBuilder.Append("' -assemblyPath '");
-                        argsStringBuilder.Append(jsonPrefs.GetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH));
-
-                        argsStringBuilder.Append("' -hostName '");
-                        argsStringBuilder.Append(synchronizedDirectory.Host);
-
-                        argsStringBuilder.Append("' -portNumber '");
-                        argsStringBuilder.Append(synchronizedDirectory.Port);
-
-                        argsStringBuilder.Append("' -username '");
-                        argsStringBuilder.Append(synchronizedDirectory.Username.UTF8GetBytes().ToBase64String());
-
-                        argsStringBuilder.Append("' -fingerprint '");
-                        argsStringBuilder.Append(storedFingerprint.UTF8GetBytes().ToBase64String());
-
-                        argsStringBuilder.Append("' -localPath '");
-                        argsStringBuilder.Append(synchronizedDirectory.LocalDirectory.UTF8GetBytes().ToBase64String());
-
-                        argsStringBuilder.Append("' -remotePath '");
-                        argsStringBuilder.Append(synchronizedDirectory.RemoteDirectory.UTF8GetBytes().ToBase64String());
-
-                        argsStringBuilder.Append("' -listPath '");
-                        argsStringBuilder.Append(Path.Combine(filesListDir, synchronizedDirectory.GetDictionaryKey().SHA256()).UTF8GetBytes().ToBase64String());
-
-                        if (synchronizedDirectory.Password.NotNullNotEmpty())
-                        {
-                            argsStringBuilder.Append("' -password '");
-                            argsStringBuilder.Append(synchronizedDirectory.Password.UTF8GetBytes().ToBase64String());
-                        }
-
-                        if (synchronizedDirectory.SshKeyFilePath.NotNullNotEmpty())
-                        {
-                            argsStringBuilder.Append("' -sshKey '");
-                            argsStringBuilder.Append(synchronizedDirectory.SshKeyFilePath.UTF8GetBytes().ToBase64String());
-
-                            argsStringBuilder.Append("' -sshKeyPassphrase '");
-                            argsStringBuilder.Append(synchronizedDirectory.SshKeyPassphrase.UTF8GetBytes().ToBase64String());
-                        }
-
-                        argsStringBuilder.Append("' ");
-
-                        string args = argsStringBuilder.ToString();
-                        string argsHash = args.SHA256();
-
-                        if (!processStartInfoCache.TryGetValue(argsHash, out var processStartInfo))
-                        {
-                            processStartInfoCache[argsHash] = processStartInfo = new ProcessStartInfo
-                            {
-                                FileName = "powershell.exe",
-                                Arguments = args,
-                                CreateNoWindow = true,
-                                UseShellExecute = false,
-                                RedirectStandardError = true,
-                                RedirectStandardOutput = true,
-                            };
-                        }
-
-                        using var process = Process.Start(processStartInfo);
-
-                        if (process is null)
-                        {
-                            continue;
-                        }
-
-                        process.ErrorDataReceived += OnProcessErrorDataReceived;
-                        process.OutputDataReceived += OnProcessOutputDataReceived;
-
-                        process.BeginErrorReadLine();
-                        process.BeginOutputReadLine();
-
-                        while (!process.HasExited)
-                        {
-                            await Task.Delay(512);
-                        }
-
-                        if (process.ExitCode != 0)
-                        {
-                            AppendLineToConsoleOutputTextBox($"ERROR: Something went wrong during the synchronization of \"{key}\"! Please check the logs and try redoing the setup process for the synchronized directory entry (if applicable).");
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        AppendLineToConsoleOutputTextBox($"ERROR while synchronizing \"{key}\" => {e.ToString()}");
-                    }
-                }
-            }
-
-            synchronizing = false;
-        }
-
-        private void OnProcessOutputDataReceived(object sender, DataReceivedEventArgs eventArgs)
-        {
-            if (eventArgs.Data is not null)
-            {
-                AppendLineToConsoleOutputTextBox(eventArgs.Data);
-            }
-        }
-
-        private void OnProcessErrorDataReceived(object sender, DataReceivedEventArgs eventArgs)
-        {
-            if (eventArgs.Data is not null)
-            {
-                AppendLineToConsoleOutputTextBox($"ERROR: {eventArgs.Data}");
-            }
-        }
-
-        private void RangeBase_OnValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            int minutes = Math.Clamp((int)SliderSyncInterval.Value, 1, 60);
-
-            SliderSyncInterval.Value = minutes;
-            LabelSyncFrequencySlider.Content = $"Synchronization frequency: every {(minutes == 1 ? "minute" : $"{minutes} minutes")}";
-
-            jsonPrefs?.SetInt(Constants.PrefKeys.SYNC_INTERVAL_MINUTES, minutes);
-        }
-
-        private async void ButtonAddNewSyncDir_OnClick(object sender, RoutedEventArgs e)
-        {
-            if (adding)
-            {
-                return;
-            }
-
-            adding = true;
-            
-            AppendLineToConsoleOutputTextBox("Adding new synchronized directory entry...");
-
-            try
-            {
-                var dialog = new AddNewSynchronizedDirectoryDialog();
-
-                if (dialog.ShowDialog() is true)
-                {
-                    SynchronizedDirectory setup = dialog.SynchronizedDirectory;
-
-                    string newDictionaryKey = setup.GetDictionaryKey();
-
-                    if (setup.Host.NullOrEmpty())
-                    {
-                        MessageBox.Show("ERROR: Host field empty. Please provide a synchronization remote host name (without schema, protocol or prefix - just the domain name)", "Invalid DirSync config");
-                        return;
-                    }
-
-                    if (setup.Username.NullOrEmpty())
-                    {
-                        MessageBox.Show("ERROR: Username field empty. Please provide valid credentials!", "Invalid DirSync config");
-                        return;
-                    }
-
-                    if (setup.LocalDirectory.NullOrEmpty())
-                    {
-                        MessageBox.Show("ERROR: Local directory field empty or points to invalid/nonexistent directory. Please choose a valid directory on your system to sync your files in!", "Invalid DirSync config");
-                        return;
-                    }
-
-                    if (synchronizedDirectories.Dictionary.ContainsKey(newDictionaryKey))
-                    {
-                        MessageBox.Show($"ERROR: You are already synchronizing the entry \"{newDictionaryKey}\".");
-                        return;
-                    }
-
-                    if (synchronizedDirectories.Dictionary.Keys.Any(key => key[..key.LastIndexOf(':')].StartsWith(setup.LocalDirectory)))
-                    {
-                        MessageBox.Show($"ERROR: You specified the local directory \"{setup.LocalDirectory}\", which is a subfolder of a directory that is already being synchronized by another entry.");
-                        return;
-                    }
-
-                    AppendLineToConsoleOutputTextBox($"Requesting host key fingerprint from \"{setup.Host}:{setup.Port}\"...");
-
-                    string fingerprint = await ScanHostKeyFingerprint(setup.Host, setup.Port);
-
-                    if (fingerprint.NullOrEmpty())
-                    {
-                        string errorMessage = $"ERROR: Couldn't retrieve host key fingerprint from \"{setup.Host}:{setup.Port}\" - it's safer (and actually required) to know the host's key fingerprint beforehand. Won't add the synchronized directory entry, for safety's sake!";
-                        AppendLineToConsoleOutputTextBox(errorMessage);
-                        MessageBox.Show(errorMessage);
-                        return;
-                    }
-
-                    SaveFingerprintIfTrusted(setup.Host, setup.Port, fingerprint);
-
-                    synchronizedDirectories.Dictionary[newDictionaryKey] = setup;
-                    synchronizedDirectories.Save();
-
-                    ListBoxSyncDirs.Items.Add(newDictionaryKey);
-
-                    _ = Task.Run(async () =>
-                    {
-                        await Task.Delay(1024);
-                        await PerformSync();
-                    });
-                }
-                else
-                {
-                    AppendLineToConsoleOutputTextBox("Synchronized directory setup dialog cancelled.");
-                }
-            }
-            catch (Exception exception)
-            {
-                AppendLineToConsoleOutputTextBox($"ERROR: Failed to add new synchronized directory entry. Thrown exception: {exception.ToString()}");
-            }
-            finally
-            {
-                adding = false;
-            }
-        }
-
-        private void ButtonRemoveSelectedSyncDir_OnClick(object sender, RoutedEventArgs e)
-        {
-            if (ListBoxSyncDirs.SelectedIndex == -1)
-            {
-                return;
-            }
-
-            try
-            {
-                object selectedItem = ListBoxSyncDirs.SelectedItem;
-                string selectedItemString = selectedItem.ToString() ?? string.Empty;
-
-                if (synchronizedDirectories.Dictionary.ContainsKey(selectedItemString))
-                {
-                    synchronizedDirectories.Dictionary.Remove(selectedItemString);
-                    synchronizedDirectories.Save();
-
-                    ListBoxSyncDirs.Items.Remove(selectedItem);
-                    ListBoxSyncDirs.UnselectAll();
-                }
-            }
-            catch (Exception exception)
-            {
-                AppendLineToConsoleOutputTextBox($"ERROR: Failed to remove synchronized directory entry. Thrown exception: {exception.ToString()}");
-            }
-        }
-
-        private void ButtonForceSyncNow_OnClick(object sender, RoutedEventArgs e)
-        {
-            ButtonForceSyncNow.IsEnabled = false;
-
-            AppendLineToConsoleOutputTextBox("Force-sync initiated by user.");
-
-            Task.Run(PerformSync).ContinueWith(async _ =>
-            {
-                await Task.Delay(4096);
-
-                ExecuteOnUIThread(() => ButtonForceSyncNow.IsEnabled = true);
-            });
-        }
-
-        private void ButtonVisitGP_OnClick(object sender, RoutedEventArgs e)
-        {
-            OpenUrl("https://glitchedpolygons.com");
-        }
-
-        /// <summary>
-        /// Opens a URL in the browser.
-        /// </summary>
-        /// <param name="url">URL to open with browser.</param>
-        /// <remarks>Source: https://stackoverflow.com/a/43232486/10291689 (last accessed: 03. Feb. 2023, 14:25 Swiss time)</remarks>
-        private void OpenUrl(string url)
-        {
-            try
-            {
-                Process.Start(url);
-            }
-            catch
-            {
-                // hack because of this: https://github.com/dotnet/corefx/issues/10361
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    url = url.Replace("&", "^&");
-
-                    Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    Process.Start("xdg-open", url);
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    Process.Start("open", url);
-                }
-                else
-                {
-                    throw;
-                }
-            }
-        }
-
-        private void SynchronizedDirectory_ContextMenu_OnClickOpenDir(object sender, RoutedEventArgs e)
-        {
-            if (ListBoxSyncDirs.SelectedIndex == -1)
-            {
-                return;
-            }
-
-            object selectedItem = ListBoxSyncDirs.SelectedItem;
-            string selectedItemString = selectedItem.ToString() ?? string.Empty;
-
-            if (synchronizedDirectories.Dictionary.TryGetValue(selectedItemString, out SynchronizedDirectory? synchronizedDirectory) && Directory.Exists(synchronizedDirectory.LocalDirectory))
-            {
-                Process.Start("Explorer.exe", synchronizedDirectory.LocalDirectory);
-            }
-        }
-
-        private void SynchronizedDirectory_ContextMenu_OnClickScanFingerprint(object sender, RoutedEventArgs e)
-        {
-            if (ListBoxSyncDirs.SelectedIndex == -1)
-            {
-                return;
-            }
-
-            object selectedItem = ListBoxSyncDirs.SelectedItem;
-            string selectedItemString = selectedItem.ToString() ?? string.Empty;
-
-            Task.Run(async () =>
-            {
-                if (!synchronizedDirectories.Dictionary.TryGetValue(selectedItemString, out SynchronizedDirectory? synchronizedDirectory))
-                {
-                    return;
-                }
-
-                string fingerprint = await ScanHostKeyFingerprint(synchronizedDirectory.Host, synchronizedDirectory.Port);
-
-                SaveFingerprintIfTrusted(synchronizedDirectory.Host, synchronizedDirectory.Port, fingerprint);
-            });
-        }
-
-        private void SaveFingerprintIfTrusted(string host, ushort port, string fingerprint)
-        {
-            string dictionaryKey = $"{host}:{port}";
-
-            if (knownHosts.Dictionary.TryGetValue(dictionaryKey, out string? storedFingerprint))
-            {
-                if (fingerprint == storedFingerprint)
-                {
-                    AppendLineToConsoleOutputTextBox($"Fingerprint for {dictionaryKey} scanned and compared to locally stored entry. They match; everything OK!\n\nFingerprint: {fingerprint}");
-                    return;
-                }
-
-                ExecuteOnUIThread(() =>
-                {
-                    if (MessageBox.Show(
-                            $"The host \"{host}:{port}\" reported the following public key fingerprint:\n\n{fingerprint}\n\nDuring setup of the associated synchronized directory entry, you accepted the following as the trusted host key fingerprint:\n\n{storedFingerprint}\n\nThese two are different! This could either be due to the host having changed keys, or a man-in-the-middle attack (hopefully not!).\n\nHow should this be handled?\n\nClicking on \"Yes\" will accept the new host key fingerprint and overwrite the currently stored one; \"No\" will reject the key returned by the server and keep everything as it was (connection won't happen in this case).",
-                            $"Fingerprint mismatch for \"{host}:{port}\"", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
-                    {
-                        AppendLineToConsoleOutputTextBox($"User rejected host \"{host}:{port}\"'s alleged public key fingerprint \"{fingerprint}\" - associated directory entries won't sync.");
-                        return;
-                    }
-
-                    Task.Run(() =>
-                    {
-                        knownHosts.Dictionary[$"{host}:{port}"] = fingerprint;
-                        knownHosts.Save();
-                    });
-                });
-            }
-            else
-            {
-                ExecuteOnUIThread(() =>
-                {
-                    if (MessageBox.Show($"The host \"{host}:{port}\" reported the following public key fingerprint:\n\n{fingerprint}\n\nIs this correct? Do you trust it?", "Host key fingerprint check", MessageBoxButton.YesNo) != MessageBoxResult.Yes)
-                    {
-                        AppendLineToConsoleOutputTextBox($"User rejected host \"{host}:{port}\"'s alleged public key fingerprint \"{fingerprint}\" - associated directory entries won't sync.");
-                        return;
-                    }
-
-                    Task.Run(() =>
-                    {
-                        knownHosts.Dictionary[$"{host}:{port}"] = fingerprint;
-                        knownHosts.Save();
-                    });
-                });
-            }
-        }
-
-        private void ButtonTogglePause_OnClick(object sender, RoutedEventArgs e)
-        {
-            paused = !paused;
-
-            ButtonTogglePause.IsEnabled = false;
-            ButtonTogglePause.Content = paused ? "Resume" : "Pause";
-
-            AppendLineToConsoleOutputTextBox($"User {(paused ? "paused" : "resumed")} automatic synchronization process.");
-
-            Task.Run(async () =>
-            {
-                await Task.Delay(4096);
-
-                ExecuteOnUIThread(() => ButtonTogglePause.IsEnabled = true);
-            });
         }
     }
 }
