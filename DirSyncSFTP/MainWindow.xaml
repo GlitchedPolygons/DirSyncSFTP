@@ -148,7 +148,20 @@
                 FontFamily="Consolas"
                 TextWrapping="Wrap"
                 HorizontalScrollBarVisibility="Disabled"
-                VerticalScrollBarVisibility="Visible" /> <!-- WinSCP sync procedure stdout will be logged in here. -->
+                VerticalScrollBarVisibility="Visible"> <!-- WinSCP sync procedure stdout will be logged in here. -->
+
+                <TextBox.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem
+                            Header="Clear"
+                            Click="TextBoxConsoleLog_ContextMenu_OnClickClear" />
+                        <MenuItem
+                            Header="Scroll to bottom"
+                            Click="TextBoxConsoleLog_ContextMenu_OnClickScrollToBottom" />
+                    </ContextMenu>
+                </TextBox.ContextMenu>
+                
+            </TextBox>
 
         </Grid>
 

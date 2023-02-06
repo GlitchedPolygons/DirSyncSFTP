@@ -19,6 +19,7 @@
 using System;
 using System.IO;
 using System.Diagnostics;
+using System.Windows;
 using GlitchedPolygons.ExtensionMethods;
 
 namespace DirSyncSFTP;
@@ -78,5 +79,16 @@ public partial class MainWindow
         {
             AppendLineToConsoleOutputTextBox($"ERROR: {eventArgs.Data}");
         }
+    }
+
+    private void TextBoxConsoleLog_ContextMenu_OnClickClear(object sender, RoutedEventArgs e)
+    {
+        TextBoxConsoleLog.Text = string.Empty;
+    }
+
+    private void TextBoxConsoleLog_ContextMenu_OnClickScrollToBottom(object sender, RoutedEventArgs e)
+    {
+        SliderSyncIntervalMinutes.Focus();
+        TextBoxConsoleLog.ScrollToEnd();
     }
 }
