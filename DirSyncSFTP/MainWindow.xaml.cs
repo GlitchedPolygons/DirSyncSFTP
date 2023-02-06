@@ -45,10 +45,13 @@ namespace DirSyncSFTP
         private volatile bool paused = false;
         private volatile bool quitting = false;
         private volatile bool synchronizing = false;
+        
+        private DateTime lastLogFileTruncateOp = DateTime.MinValue; 
 
         private readonly string baseDir;
         private readonly string filesListDir;
         private readonly string assemblyLocation;
+        private readonly string logFile;
         private readonly string powershellSyncScriptFile;
         private readonly string powershellScanHostKeyFingerprintScriptFile;
 
@@ -117,6 +120,8 @@ namespace DirSyncSFTP
             {
                 Directory.CreateDirectory(filesListDir);
             }
+
+            logFile = Path.Combine(baseDir, Constants.LOG_FILENAME);
 
             knownHosts = new KnownHosts(Path.Combine(baseDir, Constants.KNOWN_HOSTS_FILENAME));
 

@@ -37,6 +37,9 @@ public static class Constants
         public const string MAX_CONSOLE_OUTPUT_LINECOUNT = "MaxConsoleOutputLineCount";
     }
 
+    public const long MAX_LOG_FILE_SIZE_BYTES = 1024 * 1024 * 16;
+    
+    public const string LOG_FILENAME = "Log.txt";
     public const string CONFIG_FILENAME = "Config.json";
     public const string KNOWN_HOSTS_FILENAME = "KnownHosts.json";
     public const string POWERSHELL_SYNC_SCRIPT_FILENAME = "Sync.ps1";

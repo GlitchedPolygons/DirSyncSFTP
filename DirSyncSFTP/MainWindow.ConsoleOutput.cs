@@ -17,6 +17,7 @@
 */
 
 using System;
+using System.IO;
 using System.Diagnostics;
 using GlitchedPolygons.ExtensionMethods;
 
@@ -26,21 +27,37 @@ public partial class MainWindow
 {
     private void AppendLineToConsoleOutputTextBox(string line)
     {
+        if (line.EndsWith('\n'))
+        {
+            line = line.TrimEnd('\n');
+        }
+        
+        line = $"[{DateTime.Now.ToString("dd. MMM. yyyy HH:mm:ss")}]\n{line}\n\n";
+        
+        if (DateTime.Now - lastLogFileTruncateOp > TimeSpan.FromSeconds(30) && File.Exists(logFile))
+        {
+            lastLogFileTruncateOp = DateTime.Now;
+
+            FileInfo logFileInfo = new(logFile);
+
+            if (logFileInfo.Length > Constants.MAX_LOG_FILE_SIZE_BYTES)
+            {
+                logFileInfo.Delete();
+            }
+        }
+        
+        File.AppendAllTextAsync(logFile, line);
+
         ExecuteOnUIThread(() =>
         {
             if (TextBoxConsoleLog.Text.Split('\n').Length > jsonPrefs.GetInt(Constants.PrefKeys.MAX_CONSOLE_OUTPUT_LINECOUNT, 1024))
             {
                 TextBoxConsoleLog.Text = "(truncated old entries...)\n\n";
             }
-
-            if (line.EndsWith('\n'))
-            {
-                line = line.TrimEnd('\n');
-            }
-
+            
             if (line.NotNullNotEmpty())
             {
-                TextBoxConsoleLog.Text += $"[{DateTime.Now.ToString("dd. MMM. yyyy HH:mm:ss")}]\n{line}\n\n";
+                TextBoxConsoleLog.Text += line;
             }
 
             TextBoxConsoleLog.ScrollToEnd();
