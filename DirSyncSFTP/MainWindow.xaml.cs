@@ -48,6 +48,7 @@ namespace DirSyncSFTP
 
         private readonly string baseDir;
         private readonly string filesListDir;
+        private readonly string assemblyLocation;
         private readonly string powershellSyncScriptFile;
         private readonly string powershellScanHostKeyFingerprintScriptFile;
 
@@ -61,6 +62,8 @@ namespace DirSyncSFTP
         public MainWindow()
         {
             InitializeComponent();
+
+            assemblyLocation = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? string.Empty;
 
             mutex = new Mutex(true, nameof(DirSyncSFTP), out bool newInstance);
 
@@ -157,9 +160,9 @@ namespace DirSyncSFTP
                 {
                     jsonPrefs.SetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH, @"C:\Program Files (x86)\WinSCP\WinSCPnet.dll");
                 }
-                else if (File.Exists("WinSCPnet.dll"))
+                else if (File.Exists(Path.Combine(assemblyLocation, "WinSCPnet.dll")))
                 {
-                    jsonPrefs.SetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH, "WinSCPnet.dll");
+                    jsonPrefs.SetString(Constants.PrefKeys.WINSCP_ASSEMBLY_PATH, Path.Combine(assemblyLocation, "WinSCPnet.dll"));
                 }
                 else
                 {
