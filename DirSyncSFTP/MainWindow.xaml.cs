@@ -137,7 +137,7 @@ namespace DirSyncSFTP
 
             jsonPrefs.SetString(Constants.PrefKeys.VERSION_NUMBER_MAJOR, version?.Major.ToString() ?? string.Empty);
             jsonPrefs.SetString(Constants.PrefKeys.VERSION_NUMBER_MINOR, version?.Minor.ToString() ?? string.Empty);
-            jsonPrefs.SetString(Constants.PrefKeys.VERSION_NUMBER_PATCH, version?.Revision.ToString() ?? string.Empty);
+            jsonPrefs.SetString(Constants.PrefKeys.VERSION_NUMBER_PATCH, version?.Build.ToString() ?? string.Empty);
 
             if (!jsonPrefs.HasKey(Constants.PrefKeys.CLIENT_ID))
             {
