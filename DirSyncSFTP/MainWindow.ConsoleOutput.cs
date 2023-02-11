@@ -61,15 +61,19 @@ public partial class MainWindow
 
             if (line.NotNullNotEmpty())
             {
-                if (line.Contains("ERROR") || line.Contains("Error"))
+                if (line.ToUpperInvariant().Contains("ERROR"))
                 {
                     Run lineWithErrorMessage = new(line)
                     {
                         Foreground = new SolidColorBrush(Colors.DarkRed)
                     };
+                    
                     TextBoxConsoleLog.Document.Blocks.Add(new Paragraph(lineWithErrorMessage));
                 }
-                else TextBoxConsoleLog.Document.Blocks.Add(new Paragraph(new Run(line)));
+                else
+                {
+                    TextBoxConsoleLog.Document.Blocks.Add(new Paragraph(new Run(line)));
+                }
             }
             TextBoxConsoleLog.ScrollToEnd();
         });
