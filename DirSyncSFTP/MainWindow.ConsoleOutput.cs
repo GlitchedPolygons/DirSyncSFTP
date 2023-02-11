@@ -21,6 +21,8 @@ using System.IO;
 using System.Diagnostics;
 using System.Windows;
 using GlitchedPolygons.ExtensionMethods;
+using System.Windows.Documents;
+using System.Windows.Media;
 
 namespace DirSyncSFTP;
 
@@ -51,16 +53,24 @@ public partial class MainWindow
 
         ExecuteOnUIThread(() =>
         {
-            if (TextBoxConsoleLog.Text.Split('\n').Length > jsonPrefs.GetInt(Constants.PrefKeys.MAX_CONSOLE_OUTPUT_LINECOUNT, 1024))
+            if (TextBoxConsoleLog.Document.Blocks.Count > jsonPrefs.GetInt(Constants.PrefKeys.MAX_CONSOLE_OUTPUT_LINECOUNT, 1024))
             {
-                TextBoxConsoleLog.Text = "(truncated old entries...)\n\n";
-            }
-            
-            if (line.NotNullNotEmpty())
-            {
-                TextBoxConsoleLog.Text += line;
+                TextBoxConsoleLog.Document.Blocks.Clear();
+                TextBoxConsoleLog.Document.Blocks.Add(new Paragraph(new Run("(truncated old entries...)\n\n")));
             }
 
+            if (line.NotNullNotEmpty())
+            {
+                if (line.Contains("ERROR") || line.Contains("Error"))
+                {
+                    Run lineWithErrorMessage = new(line)
+                    {
+                        Foreground = new SolidColorBrush(Colors.DarkRed)
+                    };
+                    TextBoxConsoleLog.Document.Blocks.Add(new Paragraph(lineWithErrorMessage));
+                }
+                else TextBoxConsoleLog.Document.Blocks.Add(new Paragraph(new Run(line)));
+            }
             TextBoxConsoleLog.ScrollToEnd();
         });
     }
@@ -83,7 +93,7 @@ public partial class MainWindow
 
     private void TextBoxConsoleLog_ContextMenu_OnClickClear(object sender, RoutedEventArgs e)
     {
-        TextBoxConsoleLog.Text = string.Empty;
+        TextBoxConsoleLog.Document.Blocks.Clear();
     }
 
     private void TextBoxConsoleLog_ContextMenu_OnClickScrollToBottom(object sender, RoutedEventArgs e)

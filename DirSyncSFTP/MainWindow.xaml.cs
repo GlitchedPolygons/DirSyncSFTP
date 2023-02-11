@@ -32,6 +32,7 @@ using GlitchedPolygons.ExtensionMethods;
 using Path = System.IO.Path;
 using MessageBox = System.Windows.MessageBox;
 using Application = System.Windows.Application;
+using System.Windows.Documents;
 
 namespace DirSyncSFTP
 {
@@ -201,7 +202,7 @@ namespace DirSyncSFTP
 
             jsonPrefs.Save();
 
-            TextBoxConsoleLog.Text = "Copyright (C) 2023 Raphael Beck\nThis is free, GPLv3-licensed software. Enjoy :D\n\n";
+            TextBoxConsoleLog.Document.Blocks.Add(new Paragraph(new Run("Copyright (C) 2023 Raphael Beck\nThis is free, GPLv3-licensed software. Enjoy :D\n\n")));
 
             synchronizedDirectories = new SynchronizedDirectories(jsonPrefs);
             synchronizedDirectories.Load();
