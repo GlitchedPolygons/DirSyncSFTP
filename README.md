@@ -13,3 +13,9 @@ Makes use of [WinSCP](https://github.com/winscp/winscp) and its PowerShell inter
 ---
 
 ![Screenshot](https://api.files.glitchedpolygons.com/api/v1/files/dirsyncsftp-screenshot.png)
+
+---
+
+Example setup of an SFTP server + DirSyncSFTP:
+
+https://www.youtube.com/watch?v=G_cSS9fiq_o
