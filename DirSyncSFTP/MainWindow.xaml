@@ -140,17 +140,16 @@
                 Margin="-4 0 0 0"
                 Content="Console log:" />
 
-            <TextBox
+            <RichTextBox
                 x:Name="TextBoxConsoleLog"
                 IsReadOnly="True"
                 FontSize="10"
                 Grid.Row="1"
                 FontFamily="Consolas"
-                TextWrapping="Wrap"
                 HorizontalScrollBarVisibility="Disabled"
                 VerticalScrollBarVisibility="Visible"> <!-- WinSCP sync procedure stdout will be logged in here. -->
 
-                <TextBox.ContextMenu>
+                <RichTextBox.ContextMenu>
                     <ContextMenu>
                         <MenuItem
                             Header="Clear"
@@ -159,9 +158,16 @@
                             Header="Scroll to bottom"
                             Click="TextBoxConsoleLog_ContextMenu_OnClickScrollToBottom" />
                     </ContextMenu>
-                </TextBox.ContextMenu>
-                
-            </TextBox>
+                </RichTextBox.ContextMenu>
+                <FlowDocument>
+                    <FlowDocument.Resources>
+                        <!-- This style is used to set the margins for all paragraphs in the FlowDocument to 0. -->
+                        <Style TargetType="{x:Type Paragraph}">
+                            <Setter Property="Margin" Value="0"/>
+                        </Style>
+                    </FlowDocument.Resources>
+                </FlowDocument>
+            </RichTextBox>
 
         </Grid>
 
