@@ -294,6 +294,8 @@
                 Click="ButtonVisitGP_OnClick">
                 Visit homepage
             </Button>
+            
+            <Label x:Name="LabelVersionNumber" Margin="6 0 0 0" />
 
         </StackPanel>
 

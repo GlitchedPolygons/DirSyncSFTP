@@ -140,6 +140,8 @@ namespace DirSyncSFTP
             jsonPrefs.SetString(Constants.PrefKeys.VERSION_NUMBER_MINOR, version?.Minor.ToString() ?? string.Empty);
             jsonPrefs.SetString(Constants.PrefKeys.VERSION_NUMBER_PATCH, version?.Build.ToString() ?? string.Empty);
 
+            LabelVersionNumber.Content = $"v{version?.Major}.{version?.Minor}.{version?.Build}";
+            
             if (!jsonPrefs.HasKey(Constants.PrefKeys.CLIENT_ID))
             {
                 jsonPrefs.SetString(Constants.PrefKeys.CLIENT_ID, Guid.NewGuid().ToString("D").ToUpperInvariant());
@@ -225,7 +227,7 @@ namespace DirSyncSFTP
             {
                 Visible = true,
                 Text = Constants.TRAY_TOOLTIP_IDLE,
-                Icon = new System.Drawing.Icon("sftp.ico"),
+                Icon = new System.Drawing.Icon(Path.Combine(assemblyLocation, "sftp.ico")),
                 ContextMenuStrip = new ContextMenuStrip
                 {
                     Items =
