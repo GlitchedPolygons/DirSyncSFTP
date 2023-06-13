@@ -98,7 +98,7 @@ public partial class MainWindow
                 return;
             }
 
-            string fingerprint = await ScanHostKeyFingerprint(synchronizedDirectory.Host);
+            string fingerprint = await ScanHostKeyFingerprint(synchronizedDirectory.Host, synchronizedDirectory.Port);
 
             if (storedFingerprint != fingerprint)
             {
