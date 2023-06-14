@@ -22,4 +22,4 @@ https://www.youtube.com/watch?v=G_cSS9fiq_o
 
 ---
 
-FTPS variant: https://github.com/GlitchedPolygons/DirSyncSFTP
+FTPS variant: https://github.com/GlitchedPolygons/DirSyncFTPS
