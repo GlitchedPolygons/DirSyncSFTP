@@ -19,3 +19,7 @@ Makes use of [WinSCP](https://github.com/winscp/winscp) and its PowerShell inter
 Example setup of an SFTP server + DirSyncSFTP:
 
 https://www.youtube.com/watch?v=G_cSS9fiq_o
+
+---
+
+FTPS variant: https://github.com/GlitchedPolygons/DirSyncSFTP
