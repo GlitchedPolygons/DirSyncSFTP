@@ -1,3 +1,11 @@
+> [!IMPORTANT]
+>
+> # **NOTICE:**
+>
+> ## Development of this project has been migrated to: https://codeberg.org/GlitchedPolygons/DirSyncSFTP
+>
+> ## All pull requests and issues on GitHub will be ignored from the 16th of August, 2025 onwards.
+
 # DirSyncSFTP
 
 ## Convert a folder on your Windows system into a dropbox. Kinda.
@@ -12,7 +20,7 @@ Makes use of [WinSCP](https://github.com/winscp/winscp) and its PowerShell inter
 
 ---
 
-![Screenshot](https://api.files.glitchedpolygons.com/api/v1/files/dirsyncsftp-screenshot.png)
+![Screenshot](https://api-files.glitchedpolygons.com/api/v1/files/dirsyncsftp-screenshot.png)
 
 ---
 
@@ -22,4 +30,4 @@ https://www.youtube.com/watch?v=G_cSS9fiq_o
 
 ---
 
-FTPS variant: https://github.com/GlitchedPolygons/DirSyncFTPS
+FTPS variant: https://codeberg.org/GlitchedPolygons/DirSyncFTPS
